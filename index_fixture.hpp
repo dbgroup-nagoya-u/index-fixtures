@@ -116,6 +116,52 @@ class IndexFixture : public testing::Test
     return target_ids;
   }
 
+  auto
+  Write(  //
+      const size_t key_id,
+      const size_t pay_id)
+  {
+    if constexpr (std::is_same_v<Key, char *>) {
+      return index_->Write(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
+    } else {
+      return index_->Write(keys_.at(key_id), payloads_.at(pay_id));
+    }
+  }
+
+  auto
+  Insert(  //
+      const size_t key_id,
+      const size_t pay_id)
+  {
+    if constexpr (std::is_same_v<Key, char *>) {
+      return index_->Insert(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
+    } else {
+      return index_->Insert(keys_.at(key_id), payloads_.at(pay_id));
+    }
+  }
+
+  auto
+  Update(  //
+      const size_t key_id,
+      const size_t pay_id)
+  {
+    if constexpr (std::is_same_v<Key, char *>) {
+      return index_->Update(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
+    } else {
+      return index_->Update(keys_.at(key_id), payloads_.at(pay_id));
+    }
+  }
+
+  auto
+  Delete(const size_t key_id)
+  {
+    if constexpr (std::is_same_v<Key, char *>) {
+      return index_->Delete(keys_.at(key_id), kKeyLen);
+    } else {
+      return index_->Delete(keys_.at(key_id));
+    }
+  }
+
   /*####################################################################################
    * Functions for verification
    *##################################################################################*/
@@ -145,7 +191,7 @@ class IndexFixture : public testing::Test
   {
     // fill an index
     for (size_t i = 0; i < kMaxRecNum; ++i) {
-      index_->Write(keys_.at(i), payloads_.at(i), kKeyLen);
+      Write(i, i);
     }
 
     std::optional<std::pair<const Key &, bool>> begin_key = std::nullopt;
@@ -183,7 +229,7 @@ class IndexFixture : public testing::Test
       const size_t key_id,
       const size_t pay_id)
   {
-    const auto rc = index_->Write(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
+    const auto rc = Write(key_id, pay_id);
 
     EXPECT_EQ(rc, 0);
   }
@@ -194,7 +240,7 @@ class IndexFixture : public testing::Test
       const size_t pay_id,
       const bool expect_success)
   {
-    const auto rc = index_->Insert(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
+    const auto rc = Insert(key_id, pay_id);
     if (expect_success) {
       EXPECT_EQ(rc, 0);
     } else {
@@ -208,7 +254,7 @@ class IndexFixture : public testing::Test
       const size_t pay_id,
       const bool expect_success)
   {
-    const auto rc = index_->Update(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
+    const auto rc = Update(key_id, pay_id);
     if (expect_success) {
       EXPECT_EQ(rc, 0);
     } else {
@@ -221,7 +267,7 @@ class IndexFixture : public testing::Test
       const size_t key_id,
       const bool expect_success)
   {
-    const auto rc = index_->Delete(keys_.at(key_id), kKeyLen);
+    const auto rc = Delete(key_id);
     if (expect_success) {
       EXPECT_EQ(rc, 0);
     } else {
