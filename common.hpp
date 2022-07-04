@@ -20,6 +20,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <type_traits>
 
@@ -192,21 +193,31 @@ struct UInt4 {
 };
 
 struct Ptr {
-  struct PtrComp {
-    constexpr bool
-    operator()(const uint64_t *a, const uint64_t *b) const noexcept
+  using Data = uint64_t *;
+
+  struct Comp {
+    constexpr auto
+    operator()(const uint64_t *a, const uint64_t *b) const  //
+        -> bool
     {
       return *a < *b;
     }
   };
-
-  using Data = uint64_t *;
-  using Comp = PtrComp;
 };
 
 struct Var {
   using Data = char *;
-  using Comp = dbgroup::index::bztree::CompareAsCString;
+
+  struct Comp {
+    constexpr auto
+    operator()(const char *a, const char *b) const noexcept  //
+        -> bool
+    {
+      if (a == nullptr) return false;
+      if (b == nullptr) return true;
+      return strcmp(a, b) < 0;
+    }
+  };
 };
 
 struct Original {
