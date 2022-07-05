@@ -80,7 +80,6 @@ class IndexMultiThreadFixture : public testing::Test
    *##################################################################################*/
 
   static constexpr size_t kKeyLen = GetDataLength<Key>();
-  static constexpr size_t kExecNum = 1E6;
   static constexpr size_t kKeyNum = kExecNum * kThreadNum;
 
   /*####################################################################################

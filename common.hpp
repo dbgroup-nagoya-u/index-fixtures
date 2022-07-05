@@ -72,10 +72,16 @@ namespace dbgroup::index::test
  * Constants for testing
  *####################################################################################*/
 
+#ifdef INDEX_FIXTURE_EXEC_NUM_PER_THREAD
+constexpr size_t kExecNum = INDEX_FIXTURE_EXEC_NUM_PER_THREAD;
+#else
+constexpr size_t kExecNum = 1E6;
+#endif
+
 #ifdef INDEX_FIXTURE_RANDOM_SEED
 constexpr size_t kRandomSeed = INDEX_FIXTURE_RANDOM_SEED;
 #else
-static constexpr size_t kRandomSeed = 8;
+constexpr size_t kRandomSeed = 8;
 #endif
 
 constexpr size_t kVarDataLength = 12;

@@ -67,8 +67,7 @@ class IndexFixture : public testing::Test
   static constexpr size_t kRecNumWithoutSMOs = 30;
   static constexpr size_t kRecNumWithLeafSMOs = 1000;
   static constexpr size_t kRecNumWithInternalSMOs = 30000;
-  static constexpr size_t kMaxRecNum = 1E6;
-  static constexpr size_t kKeyNum = kMaxRecNum + 2;
+  static constexpr size_t kKeyNum = kExecNum + 2;
 
   /*####################################################################################
    * Setup/Teardown
@@ -191,7 +190,7 @@ class IndexFixture : public testing::Test
       const std::optional<std::pair<size_t, bool>> end_ref)
   {
     // fill an index
-    for (size_t i = 0; i < kMaxRecNum; ++i) {
+    for (size_t i = 0; i < kExecNum; ++i) {
       Write(i, i);
     }
 
@@ -281,7 +280,7 @@ class IndexFixture : public testing::Test
       const bool write_twice,
       const bool with_delete,
       const bool is_shuffled,
-      const size_t ops_num = kMaxRecNum)
+      const size_t ops_num = kExecNum)
   {
     const auto &target_ids = CreateTargetIDs(ops_num, is_shuffled);
 
@@ -314,25 +313,25 @@ class IndexFixture : public testing::Test
       const bool with_delete,
       const bool is_shuffled)
   {
-    const auto &target_ids = CreateTargetIDs(kMaxRecNum, is_shuffled);
+    const auto &target_ids = CreateTargetIDs(kExecNum, is_shuffled);
 
-    for (size_t i = 0; i < kMaxRecNum; ++i) {
+    for (size_t i = 0; i < kExecNum; ++i) {
       const auto id = target_ids.at(i);
       VerifyInsert(id, id, kExpectSuccess);
     }
     if (with_delete) {
-      for (size_t i = 0; i < kMaxRecNum; ++i) {
+      for (size_t i = 0; i < kExecNum; ++i) {
         const auto id = target_ids.at(i);
         VerifyDelete(id, kExpectSuccess);
       }
     }
     if (write_twice) {
-      for (size_t i = 0; i < kMaxRecNum; ++i) {
+      for (size_t i = 0; i < kExecNum; ++i) {
         const auto key_id = target_ids.at(i);
         VerifyInsert(key_id, key_id + 1, with_delete);
       }
     }
-    for (size_t i = 0; i < kMaxRecNum; ++i) {
+    for (size_t i = 0; i < kExecNum; ++i) {
       const auto key_id = target_ids.at(i);
       const auto val_id = (write_twice && with_delete) ? key_id + 1 : key_id;
       VerifyRead(key_id, val_id, kExpectSuccess);
@@ -345,26 +344,26 @@ class IndexFixture : public testing::Test
       const bool with_delete,
       const bool is_shuffled)
   {
-    const auto &target_ids = CreateTargetIDs(kMaxRecNum, is_shuffled);
+    const auto &target_ids = CreateTargetIDs(kExecNum, is_shuffled);
     const auto expect_update = with_write && !with_delete;
 
     if (with_write) {
-      for (size_t i = 0; i < kMaxRecNum; ++i) {
+      for (size_t i = 0; i < kExecNum; ++i) {
         const auto id = target_ids.at(i);
         VerifyWrite(id, id);
       }
     }
     if (with_delete) {
-      for (size_t i = 0; i < kMaxRecNum; ++i) {
+      for (size_t i = 0; i < kExecNum; ++i) {
         const auto id = target_ids.at(i);
         VerifyDelete(id, kExpectSuccess);
       }
     }
-    for (size_t i = 0; i < kMaxRecNum; ++i) {
+    for (size_t i = 0; i < kExecNum; ++i) {
       const auto key_id = target_ids.at(i);
       VerifyUpdate(key_id, key_id + 1, expect_update);
     }
-    for (size_t i = 0; i < kMaxRecNum; ++i) {
+    for (size_t i = 0; i < kExecNum; ++i) {
       const auto key_id = target_ids.at(i);
       const auto val_id = (expect_update) ? key_id + 1 : key_id;
       VerifyRead(key_id, val_id, expect_update);
@@ -377,26 +376,26 @@ class IndexFixture : public testing::Test
       const bool with_delete,
       const bool is_shuffled)
   {
-    const auto &target_ids = CreateTargetIDs(kMaxRecNum, is_shuffled);
+    const auto &target_ids = CreateTargetIDs(kExecNum, is_shuffled);
     const auto expect_delete = with_write && !with_delete;
 
     if (with_write) {
-      for (size_t i = 0; i < kMaxRecNum; ++i) {
+      for (size_t i = 0; i < kExecNum; ++i) {
         const auto id = target_ids.at(i);
         VerifyWrite(id, id);
       }
     }
     if (with_delete) {
-      for (size_t i = 0; i < kMaxRecNum; ++i) {
+      for (size_t i = 0; i < kExecNum; ++i) {
         const auto id = target_ids.at(i);
         VerifyDelete(id, kExpectSuccess);
       }
     }
-    for (size_t i = 0; i < kMaxRecNum; ++i) {
+    for (size_t i = 0; i < kExecNum; ++i) {
       const auto key_id = target_ids.at(i);
       VerifyDelete(key_id, expect_delete);
     }
-    for (size_t i = 0; i < kMaxRecNum; ++i) {
+    for (size_t i = 0; i < kExecNum; ++i) {
       const auto key_id = target_ids.at(i);
       VerifyRead(key_id, key_id, kExpectFailed);
     }
