@@ -72,15 +72,13 @@ namespace dbgroup::index::test
  * Constants for testing
  *####################################################################################*/
 
-#ifdef INDEX_FIXTURE_THREAD_NUM
-static constexpr size_t kThreadNum = INDEX_FIXTURE_THREAD_NUM;
+#ifdef INDEX_FIXTURE_RANDOM_SEED
+constexpr size_t kRandomSeed = INDEX_FIXTURE_RANDOM_SEED;
 #else
-static constexpr size_t kThreadNum = 8;
+static constexpr size_t kRandomSeed = 8;
 #endif
 
 constexpr size_t kVarDataLength = 12;
-
-constexpr size_t kRandomSeed = 10;
 
 constexpr bool kExpectSuccess = true;
 
@@ -101,6 +99,10 @@ constexpr bool kShuffled = true;
 /*######################################################################################
  * Global utilities
  *####################################################################################*/
+
+struct VarData {
+  char data[kVarDataLength]{};
+};
 
 /**
  * @tparam Compare a comparator class.
@@ -140,15 +142,25 @@ PrepareTestData(const size_t data_num)  //
   std::vector<T> data_vec{};
   data_vec.reserve(data_num);
 
+  // reeserve memory if needed
+  VarData *var_arr{nullptr};
+  uint64_t *ptr_arr{nullptr};
+  if constexpr (std::is_same_v<T, char *>) {
+    var_arr = new VarData[data_num];
+  } else if constexpr (std::is_same_v<T, uint64_t *>) {
+    ptr_arr = new uint64_t[data_num];
+  }
+
   for (size_t i = 0; i < data_num; ++i) {
     if constexpr (std::is_same_v<T, char *>) {
       // variable-length data
-      auto *data = reinterpret_cast<char *>(::operator new(kVarDataLength));
+      auto *data = reinterpret_cast<char *>(&(var_arr[i]));
       snprintf(data, kVarDataLength, "%011lu", i);  // NOLINT
-      data_vec.emplace_back(reinterpret_cast<T>(data));
+      data_vec.emplace_back(data);
     } else if constexpr (std::is_same_v<T, uint64_t *>) {
       // pointer data
-      data_vec.emplace_back(new uint64_t{i});
+      ptr_arr[i] = i;
+      data_vec.emplace_back(&(ptr_arr[i]));
     } else {
       // static-length data
       data_vec.emplace_back(i);
@@ -160,16 +172,12 @@ PrepareTestData(const size_t data_num)  //
 
 template <class T>
 void
-ReleaseTestData(std::vector<T> &data_vec)
+ReleaseTestData([[maybe_unused]] std::vector<T> &data_vec)
 {
-  for (auto &&elem : data_vec) {
-    if constexpr (std::is_same_v<T, char *>) {
-      // variable-length data
-      ::operator delete(elem);
-    } else if constexpr (std::is_same_v<T, uint64_t *>) {
-      // pointer data
-      delete elem;
-    }
+  if constexpr (std::is_same_v<T, char *>) {
+    delete[] reinterpret_cast<VarData *>(data_vec.front());
+  } else if constexpr (std::is_same_v<T, uint64_t *>) {
+    delete[] data_vec.front();
   }
 }
 

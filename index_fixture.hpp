@@ -21,10 +21,11 @@
 #include <memory>
 #include <random>
 
-#include "common.hpp"
-
 // external libraries
 #include "gtest/gtest.h"
+
+// project libraries
+#include "common.hpp"
 
 namespace dbgroup::index::test
 {
@@ -405,11 +406,13 @@ class IndexFixture : public testing::Test
    * Internal member variables
    *##################################################################################*/
 
-  // actual keys and payloads
+  /// actual keys
   std::vector<Key> keys_{};
+
+  /// actual payloads
   std::vector<Payload> payloads_{};
 
-  // a test target BzTree
+  /// an index for testing
   std::unique_ptr<Index> index_{nullptr};
 };
 
