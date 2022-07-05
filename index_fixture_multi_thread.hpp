@@ -191,7 +191,7 @@ class IndexMultiThreadFixture : public testing::Test
       threads.emplace_back(func, i);
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds{1});
+    std::this_thread::sleep_for(std::chrono::milliseconds{100});
     std::lock_guard guard{s_mtx_};
 
     is_ready_ = true;
