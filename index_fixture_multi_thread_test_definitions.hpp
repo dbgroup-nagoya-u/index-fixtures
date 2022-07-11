@@ -193,3 +193,72 @@ TYPED_TEST(IndexMultiThreadFixture, RandomDeleteWithDeletedKeysFail)
 {
   TestFixture::VerifyDeletesWith(kWithWrite, kWithDelete, kRandom);
 }
+
+/*--------------------------------------------------------------------------------------
+ * Bulkload operation
+ *------------------------------------------------------------------------------------*/
+
+TYPED_TEST(IndexMultiThreadFixture, BulkloadWithoutAdditionalWriteOperations)
+{
+  TestFixture::VerifyBulkloadWith(kWithoutWrite, kSequential);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, BulkloadWithSequentialWrite)
+{
+  TestFixture::VerifyBulkloadWith(kWrite, kSequential);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, BulkloadWithSequentialInsert)
+{
+  TestFixture::VerifyBulkloadWith(kInsert, kSequential);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, BulkloadWithSequentialUpdate)
+{
+  TestFixture::VerifyBulkloadWith(kUpdate, kSequential);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, BulkloadWithSequentialDelete)
+{
+  TestFixture::VerifyBulkloadWith(kDelete, kSequential);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, BulkloadWithReverseWrite)
+{
+  TestFixture::VerifyBulkloadWith(kWrite, kReverse);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, BulkloadWithReverseInsert)
+{
+  TestFixture::VerifyBulkloadWith(kInsert, kReverse);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, BulkloadWithReverseUpdate)
+{
+  TestFixture::VerifyBulkloadWith(kUpdate, kReverse);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, BulkloadWithReverseDelete)
+{
+  TestFixture::VerifyBulkloadWith(kDelete, kReverse);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, BulkloadWithRandomWrite)
+{
+  TestFixture::VerifyBulkloadWith(kWrite, kRandom);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, BulkloadWithRandomInsert)
+{
+  TestFixture::VerifyBulkloadWith(kInsert, kRandom);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, BulkloadWithRandomUpdate)
+{
+  TestFixture::VerifyBulkloadWith(kUpdate, kRandom);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, BulkloadWithRandomDelete)
+{
+  TestFixture::VerifyBulkloadWith(kDelete, kRandom);
+}

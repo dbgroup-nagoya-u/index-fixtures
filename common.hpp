@@ -78,6 +78,14 @@ enum AccessPattern {
   kRandom,
 };
 
+enum WriteOperation {
+  kWrite,
+  kInsert,
+  kUpdate,
+  kDelete,
+  kWithoutWrite,
+};
+
 #ifdef INDEX_FIXTURE_EXEC_NUM_PER_THREAD
 constexpr size_t kExecNum = INDEX_FIXTURE_EXEC_NUM_PER_THREAD;
 #else
@@ -112,6 +120,80 @@ constexpr bool kWithDelete = true;
 
 struct VarData {
   char data[kVarDataLength]{};
+};
+
+template <class Key, class Payload>
+class Record
+{
+ public:
+  /*####################################################################################
+   * Public constructors and assignment operators
+   *##################################################################################*/
+
+  constexpr Record() = default;
+
+  constexpr Record(  //
+      const Key key,
+      const Payload payload,
+      const size_t key_length = sizeof(Key))
+      : key_{key}, payload_{payload}, key_length_{key_length}
+  {
+  }
+
+  constexpr Record(const Record &) = default;
+  constexpr Record(Record &&) noexcept = default;
+
+  constexpr auto operator=(const Record &) -> Record & = default;
+  constexpr auto operator=(Record &&) noexcept -> Record & = default;
+
+  /*####################################################################################
+   * Public destructors
+   *##################################################################################*/
+
+  ~Record() = default;
+
+  /*####################################################################################
+   * Public getters
+   *##################################################################################*/
+
+  [[nodiscard]] constexpr auto
+  GetKey() const  //
+      -> const Key &
+  {
+    return key_;
+  }
+
+  [[nodiscard]] constexpr auto
+  GetPayload() const  //
+      -> const Payload &
+  {
+    return payload_;
+  }
+
+  [[nodiscard]] constexpr auto
+  GetKeyLength() const  //
+      -> size_t
+  {
+    return key_length_;
+  }
+
+  [[nodiscard]] constexpr auto
+  GetPayloadLength() const  //
+      -> size_t
+  {
+    return sizeof(Payload);
+  }
+
+ private:
+  /*####################################################################################
+   * Internal member variables
+   *##################################################################################*/
+
+  Key key_{};
+
+  Payload payload_{};
+
+  size_t key_length_{};
 };
 
 /**

@@ -252,3 +252,72 @@ TYPED_TEST(IndexFixture, RandomDeleteWithDeletedKeysFail)
 {
   TestFixture::VerifyDeletesWith(kWithWrite, kWithDelete, kRandom);
 }
+
+/*--------------------------------------------------------------------------------------
+ * Bulkload operation
+ *------------------------------------------------------------------------------------*/
+
+TYPED_TEST(IndexFixture, BulkloadWithoutAdditionalWriteOperations)
+{
+  TestFixture::VerifyBulkloadWith(kWithoutWrite, kSequential);
+}
+
+TYPED_TEST(IndexFixture, BulkloadWithSequentialWrite)
+{
+  TestFixture::VerifyBulkloadWith(kWrite, kSequential);
+}
+
+TYPED_TEST(IndexFixture, BulkloadWithSequentialInsert)
+{
+  TestFixture::VerifyBulkloadWith(kInsert, kSequential);
+}
+
+TYPED_TEST(IndexFixture, BulkloadWithSequentialUpdate)
+{
+  TestFixture::VerifyBulkloadWith(kUpdate, kSequential);
+}
+
+TYPED_TEST(IndexFixture, BulkloadWithSequentialDelete)
+{
+  TestFixture::VerifyBulkloadWith(kDelete, kSequential);
+}
+
+TYPED_TEST(IndexFixture, BulkloadWithReverseWrite)
+{
+  TestFixture::VerifyBulkloadWith(kWrite, kReverse);
+}
+
+TYPED_TEST(IndexFixture, BulkloadWithReverseInsert)
+{
+  TestFixture::VerifyBulkloadWith(kInsert, kReverse);
+}
+
+TYPED_TEST(IndexFixture, BulkloadWithReverseUpdate)
+{
+  TestFixture::VerifyBulkloadWith(kUpdate, kReverse);
+}
+
+TYPED_TEST(IndexFixture, BulkloadWithReverseDelete)
+{
+  TestFixture::VerifyBulkloadWith(kDelete, kReverse);
+}
+
+TYPED_TEST(IndexFixture, BulkloadWithRandomWrite)
+{
+  TestFixture::VerifyBulkloadWith(kWrite, kRandom);
+}
+
+TYPED_TEST(IndexFixture, BulkloadWithRandomInsert)
+{
+  TestFixture::VerifyBulkloadWith(kInsert, kRandom);
+}
+
+TYPED_TEST(IndexFixture, BulkloadWithRandomUpdate)
+{
+  TestFixture::VerifyBulkloadWith(kUpdate, kRandom);
+}
+
+TYPED_TEST(IndexFixture, BulkloadWithRandomDelete)
+{
+  TestFixture::VerifyBulkloadWith(kDelete, kRandom);
+}

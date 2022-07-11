@@ -336,6 +336,21 @@ class IndexMultiThreadFixture : public testing::Test
   }
 
   void
+  VerifyBulkload()
+  {
+    constexpr size_t kOpsNum = kExecNum * kThreadNum;
+
+    std::vector<Record> entries{};
+    entries.reserve(kOpsNum);
+    for (size_t i = 0; i < kOpsNum; ++i) {
+      entries.emplace_back(keys_.at(i), payloads_.at(i), kKeyLen);
+    }
+
+    const auto rc = index_->Bulkload(entries, kThreadNum);
+    EXPECT_EQ(rc, 0);
+  }
+
+  void
   VerifyWritesWith(  //
       const bool write_twice,
       const bool with_delete,
@@ -392,6 +407,39 @@ class IndexMultiThreadFixture : public testing::Test
     VerifyDelete(expect_success, pattern);
     VerifyRead(kExpectFailed, !kWriteTwice, pattern);
     VerifyScan(kExpectFailed, !kWriteTwice);
+  }
+
+  void
+  VerifyBulkloadWith(  //
+      const WriteOperation write_ops,
+      const AccessPattern pattern)
+  {
+    auto expect_success = true;
+    auto is_updated = false;
+
+    VerifyBulkload();
+    switch (write_ops) {
+      case kWrite:
+        VerifyWrite(kWriteTwice, pattern);
+        is_updated = true;
+        break;
+      case kInsert:
+        VerifyInsert(kExpectFailed, kWriteTwice, pattern);
+        break;
+      case kUpdate:
+        VerifyUpdate(kExpectSuccess, pattern);
+        is_updated = true;
+        break;
+      case kDelete:
+        VerifyDelete(kExpectSuccess, pattern);
+        expect_success = false;
+        break;
+      case kWithoutWrite:
+      default:
+        break;
+    }
+    VerifyRead(expect_success, is_updated, pattern);
+    VerifyScan(expect_success, is_updated);
   }
 
   /*####################################################################################

@@ -310,6 +310,19 @@ class IndexFixture : public testing::Test
   }
 
   void
+  VerifyBulkload()
+  {
+    std::vector<Record> entries{};
+    entries.reserve(kExecNum);
+    for (size_t i = 0; i < kExecNum; ++i) {
+      entries.emplace_back(keys_.at(i), payloads_.at(i), kKeyLen);
+    }
+
+    const auto rc = index_->Bulkload(entries, 1);
+    EXPECT_EQ(rc, 0);
+  }
+
+  void
   VerifyWritesWith(  //
       const bool write_twice,
       const bool with_delete,
@@ -336,13 +349,14 @@ class IndexFixture : public testing::Test
     const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
     const auto &begin_ref = std::make_pair(0, kRangeClosed);
     const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
+    const auto expect_success = !with_delete || write_twice;
     const bool is_updated = write_twice && with_delete;
 
     VerifyInsert(target_ids, kExpectSuccess);
     if (with_delete) VerifyDelete(target_ids, kExpectSuccess);
     if (write_twice) VerifyInsert(target_ids, with_delete, kWriteTwice);
-    VerifyRead(target_ids, !with_delete || write_twice, is_updated);
-    VerifyScan(begin_ref, end_ref, kExpectSuccess, is_updated);
+    VerifyRead(target_ids, expect_success, is_updated);
+    VerifyScan(begin_ref, end_ref, expect_success, is_updated);
   }
 
   void
@@ -379,6 +393,42 @@ class IndexFixture : public testing::Test
     VerifyDelete(target_ids, expect_delete);
     VerifyRead(target_ids, kExpectFailed);
     VerifyScan(begin_ref, end_ref, kExpectFailed);
+  }
+
+  void
+  VerifyBulkloadWith(  //
+      const WriteOperation write_ops,
+      const AccessPattern pattern)
+  {
+    const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
+    const auto &begin_ref = std::make_pair(0, kRangeClosed);
+    const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
+    auto expect_success = true;
+    auto is_updated = false;
+
+    VerifyBulkload();
+    switch (write_ops) {
+      case kWrite:
+        VerifyWrite(target_ids, kWriteTwice);
+        is_updated = true;
+        break;
+      case kInsert:
+        VerifyInsert(target_ids, kExpectFailed);
+        break;
+      case kUpdate:
+        VerifyUpdate(target_ids, kExpectSuccess);
+        is_updated = true;
+        break;
+      case kDelete:
+        VerifyDelete(target_ids, kExpectSuccess);
+        expect_success = false;
+        break;
+      case kWithoutWrite:
+      default:
+        break;
+    }
+    VerifyRead(target_ids, expect_success, is_updated);
+    VerifyScan(begin_ref, end_ref, expect_success, is_updated);
   }
 
   /*####################################################################################
