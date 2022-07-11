@@ -168,38 +168,48 @@ class IndexFixture : public testing::Test
     }
   }
 
+  void
+  FillIndex()
+  {
+    for (size_t i = 0; i < kExecNum; ++i) {
+      Write(i, i);
+    }
+  }
+
   /*####################################################################################
    * Functions for verification
    *##################################################################################*/
 
   void
   VerifyRead(  //
-      const size_t key_id,
-      const size_t expected_id,
-      const bool expect_success)
+      const std::vector<size_t> &target_ids,
+      const bool expect_success,
+      const bool write_twice = false)
   {
-    const auto read_val = index_->Read(keys_.at(key_id));
-    if (expect_success) {
-      EXPECT_TRUE(read_val);
+    for (size_t i = 0; i < target_ids.size(); ++i) {
+      const auto key_id = target_ids.at(i);
+      const auto pay_id = (write_twice) ? key_id + 1 : key_id;
 
-      const auto expected_val = payloads_.at(expected_id);
-      const auto actual_val = read_val.value();
-      EXPECT_TRUE(IsEqual<PayComp>(expected_val, actual_val));
-    } else {
-      EXPECT_FALSE(read_val);
+      const auto read_val = index_->Read(keys_.at(key_id));
+      if (expect_success) {
+        EXPECT_TRUE(read_val);
+
+        const auto expected_val = payloads_.at(pay_id);
+        const auto actual_val = read_val.value();
+        EXPECT_TRUE(IsEqual<PayComp>(expected_val, actual_val));
+      } else {
+        EXPECT_FALSE(read_val);
+      }
     }
   }
 
   void
   VerifyScan(  //
       const std::optional<std::pair<size_t, bool>> begin_ref,
-      const std::optional<std::pair<size_t, bool>> end_ref)
+      const std::optional<std::pair<size_t, bool>> end_ref,
+      const bool expect_success = true,
+      const bool write_twice = false)
   {
-    // fill an index
-    for (size_t i = 0; i < kExecNum; ++i) {
-      Write(i, i);
-    }
-
     std::optional<std::pair<const Key &, bool>> begin_key = std::nullopt;
     size_t begin_pos = 0;
     if (begin_ref) {
@@ -216,68 +226,86 @@ class IndexFixture : public testing::Test
       end_pos = (end_closed) ? end_id + 1 : end_id;
     }
 
-    auto iter = index_->Scan(begin_key, end_key);
-
-    for (; iter.HasNext(); ++iter, ++begin_pos) {
-      auto [key, payload] = *iter;
-      EXPECT_TRUE(IsEqual<KeyComp>(keys_.at(begin_pos), key));
-      EXPECT_TRUE(IsEqual<PayComp>(payloads_.at(begin_pos), payload));
+    auto &&iter = index_->Scan(begin_key, end_key);
+    if (expect_success) {
+      for (; iter.HasNext(); ++iter, ++begin_pos) {
+        const auto &[key, payload] = *iter;
+        const auto val_id = (write_twice) ? begin_pos + 1 : begin_pos;
+        EXPECT_TRUE(IsEqual<KeyComp>(keys_.at(begin_pos), key));
+        EXPECT_TRUE(IsEqual<PayComp>(payloads_.at(val_id), payload));
+      }
+      if (end_ref) {
+        EXPECT_EQ(begin_pos, end_pos);
+      }
     }
     EXPECT_FALSE(iter.HasNext());
-
-    if (end_ref) {
-      EXPECT_EQ(begin_pos, end_pos);
-    }
   }
 
   void
   VerifyWrite(  //
-      const size_t key_id,
-      const size_t pay_id)
+      const std::vector<size_t> &target_ids,
+      const bool write_twice = false)
   {
-    const auto rc = Write(key_id, pay_id);
+    for (size_t i = 0; i < target_ids.size(); ++i) {
+      const auto key_id = target_ids.at(i);
+      const auto pay_id = (write_twice) ? key_id + 1 : key_id;
 
-    EXPECT_EQ(rc, 0);
+      const auto rc = Write(key_id, pay_id);
+      EXPECT_EQ(rc, 0);
+    }
   }
 
   void
   VerifyInsert(  //
-      const size_t key_id,
-      const size_t pay_id,
-      const bool expect_success)
+      const std::vector<size_t> &target_ids,
+      const bool expect_success,
+      const bool write_twice = false)
   {
-    const auto rc = Insert(key_id, pay_id);
-    if (expect_success) {
-      EXPECT_EQ(rc, 0);
-    } else {
-      EXPECT_NE(rc, 0);
+    for (size_t i = 0; i < target_ids.size(); ++i) {
+      const auto key_id = target_ids.at(i);
+      const auto pay_id = (write_twice) ? key_id + 1 : key_id;
+
+      const auto rc = Insert(key_id, pay_id);
+      if (expect_success) {
+        EXPECT_EQ(rc, 0);
+      } else {
+        EXPECT_NE(rc, 0);
+      }
     }
   }
 
   void
   VerifyUpdate(  //
-      const size_t key_id,
-      const size_t pay_id,
+      const std::vector<size_t> &target_ids,
       const bool expect_success)
   {
-    const auto rc = Update(key_id, pay_id);
-    if (expect_success) {
-      EXPECT_EQ(rc, 0);
-    } else {
-      EXPECT_NE(rc, 0);
+    for (size_t i = 0; i < target_ids.size(); ++i) {
+      const auto key_id = target_ids.at(i);
+      const auto pay_id = key_id + 1;
+
+      const auto rc = Update(key_id, pay_id);
+      if (expect_success) {
+        EXPECT_EQ(rc, 0);
+      } else {
+        EXPECT_NE(rc, 0);
+      }
     }
   }
 
   void
   VerifyDelete(  //
-      const size_t key_id,
+      const std::vector<size_t> &target_ids,
       const bool expect_success)
   {
-    const auto rc = Delete(key_id);
-    if (expect_success) {
-      EXPECT_EQ(rc, 0);
-    } else {
-      EXPECT_NE(rc, 0);
+    for (size_t i = 0; i < target_ids.size(); ++i) {
+      const auto key_id = target_ids.at(i);
+
+      const auto rc = Delete(key_id);
+      if (expect_success) {
+        EXPECT_EQ(rc, 0);
+      } else {
+        EXPECT_NE(rc, 0);
+      }
     }
   }
 
@@ -289,28 +317,14 @@ class IndexFixture : public testing::Test
       const size_t ops_num = kExecNum)
   {
     const auto &target_ids = CreateTargetIDs(ops_num, pattern);
+    const auto &begin_ref = std::make_pair(0, kRangeClosed);
+    const auto &end_ref = std::make_pair(ops_num, kRangeOpened);
 
-    for (size_t i = 0; i < ops_num; ++i) {
-      const auto id = target_ids.at(i);
-      VerifyWrite(id, id);
-    }
-    if (with_delete) {
-      for (size_t i = 0; i < ops_num; ++i) {
-        const auto id = target_ids.at(i);
-        VerifyDelete(id, kExpectSuccess);
-      }
-    }
-    if (write_twice) {
-      for (size_t i = 0; i < ops_num; ++i) {
-        const auto id = target_ids.at(i);
-        VerifyWrite(id, id + 1);
-      }
-    }
-    for (size_t i = 0; i < ops_num; ++i) {
-      const auto key_id = target_ids.at(i);
-      const auto val_id = (write_twice) ? key_id + 1 : key_id;
-      VerifyRead(key_id, val_id, kExpectSuccess);
-    }
+    VerifyWrite(target_ids);
+    if (with_delete) VerifyDelete(target_ids, kExpectSuccess);
+    if (write_twice) VerifyWrite(target_ids, kWriteTwice);
+    VerifyRead(target_ids, !with_delete || write_twice, write_twice);
+    VerifyScan(begin_ref, end_ref, kExpectSuccess, write_twice);
   }
 
   void
@@ -320,28 +334,15 @@ class IndexFixture : public testing::Test
       const AccessPattern pattern)
   {
     const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
+    const auto &begin_ref = std::make_pair(0, kRangeClosed);
+    const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
+    const bool is_updated = write_twice && with_delete;
 
-    for (size_t i = 0; i < kExecNum; ++i) {
-      const auto id = target_ids.at(i);
-      VerifyInsert(id, id, kExpectSuccess);
-    }
-    if (with_delete) {
-      for (size_t i = 0; i < kExecNum; ++i) {
-        const auto id = target_ids.at(i);
-        VerifyDelete(id, kExpectSuccess);
-      }
-    }
-    if (write_twice) {
-      for (size_t i = 0; i < kExecNum; ++i) {
-        const auto key_id = target_ids.at(i);
-        VerifyInsert(key_id, key_id + 1, with_delete);
-      }
-    }
-    for (size_t i = 0; i < kExecNum; ++i) {
-      const auto key_id = target_ids.at(i);
-      const auto val_id = (write_twice && with_delete) ? key_id + 1 : key_id;
-      VerifyRead(key_id, val_id, kExpectSuccess);
-    }
+    VerifyInsert(target_ids, kExpectSuccess);
+    if (with_delete) VerifyDelete(target_ids, kExpectSuccess);
+    if (write_twice) VerifyInsert(target_ids, with_delete, kWriteTwice);
+    VerifyRead(target_ids, !with_delete || write_twice, is_updated);
+    VerifyScan(begin_ref, end_ref, kExpectSuccess, is_updated);
   }
 
   void
@@ -351,29 +352,15 @@ class IndexFixture : public testing::Test
       const AccessPattern pattern)
   {
     const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
+    const auto &begin_ref = std::make_pair(0, kRangeClosed);
+    const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
     const auto expect_update = with_write && !with_delete;
 
-    if (with_write) {
-      for (size_t i = 0; i < kExecNum; ++i) {
-        const auto id = target_ids.at(i);
-        VerifyWrite(id, id);
-      }
-    }
-    if (with_delete) {
-      for (size_t i = 0; i < kExecNum; ++i) {
-        const auto id = target_ids.at(i);
-        VerifyDelete(id, kExpectSuccess);
-      }
-    }
-    for (size_t i = 0; i < kExecNum; ++i) {
-      const auto key_id = target_ids.at(i);
-      VerifyUpdate(key_id, key_id + 1, expect_update);
-    }
-    for (size_t i = 0; i < kExecNum; ++i) {
-      const auto key_id = target_ids.at(i);
-      const auto val_id = (expect_update) ? key_id + 1 : key_id;
-      VerifyRead(key_id, val_id, expect_update);
-    }
+    if (with_write) VerifyWrite(target_ids);
+    if (with_delete) VerifyDelete(target_ids, with_write);
+    VerifyUpdate(target_ids, expect_update);
+    VerifyRead(target_ids, expect_update, kWriteTwice);
+    VerifyScan(begin_ref, end_ref, expect_update, kWriteTwice);
   }
 
   void
@@ -383,28 +370,15 @@ class IndexFixture : public testing::Test
       const AccessPattern pattern)
   {
     const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
+    const auto &begin_ref = std::make_pair(0, kRangeClosed);
+    const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
     const auto expect_delete = with_write && !with_delete;
 
-    if (with_write) {
-      for (size_t i = 0; i < kExecNum; ++i) {
-        const auto id = target_ids.at(i);
-        VerifyWrite(id, id);
-      }
-    }
-    if (with_delete) {
-      for (size_t i = 0; i < kExecNum; ++i) {
-        const auto id = target_ids.at(i);
-        VerifyDelete(id, kExpectSuccess);
-      }
-    }
-    for (size_t i = 0; i < kExecNum; ++i) {
-      const auto key_id = target_ids.at(i);
-      VerifyDelete(key_id, expect_delete);
-    }
-    for (size_t i = 0; i < kExecNum; ++i) {
-      const auto key_id = target_ids.at(i);
-      VerifyRead(key_id, key_id, kExpectFailed);
-    }
+    if (with_write) VerifyWrite(target_ids);
+    if (with_delete) VerifyDelete(target_ids, with_write);
+    VerifyDelete(target_ids, expect_delete);
+    VerifyRead(target_ids, kExpectFailed);
+    VerifyScan(begin_ref, end_ref, kExpectFailed);
   }
 
   /*####################################################################################
