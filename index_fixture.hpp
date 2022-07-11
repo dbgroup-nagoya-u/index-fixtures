@@ -98,18 +98,24 @@ class IndexFixture : public testing::Test
   [[nodiscard]] auto
   CreateTargetIDs(  //
       const size_t rec_num,
-      const bool is_shuffled) const  //
+      const AccessPattern pattern) const  //
       -> std::vector<size_t>
   {
     std::mt19937_64 rand_engine{kRandomSeed};
 
     std::vector<size_t> target_ids{};
     target_ids.reserve(rec_num);
-    for (size_t i = 0; i < rec_num; ++i) {
-      target_ids.emplace_back(i);
+    if (pattern == kReverse) {
+      for (int64_t i = rec_num - 1; i >= 0; --i) {
+        target_ids.emplace_back(i);
+      }
+    } else {
+      for (size_t i = 0; i < rec_num; ++i) {
+        target_ids.emplace_back(i);
+      }
     }
 
-    if (is_shuffled) {
+    if (pattern == kRandom) {
       std::shuffle(target_ids.begin(), target_ids.end(), rand_engine);
     }
 
@@ -279,10 +285,10 @@ class IndexFixture : public testing::Test
   VerifyWritesWith(  //
       const bool write_twice,
       const bool with_delete,
-      const bool is_shuffled,
+      const AccessPattern pattern,
       const size_t ops_num = kExecNum)
   {
-    const auto &target_ids = CreateTargetIDs(ops_num, is_shuffled);
+    const auto &target_ids = CreateTargetIDs(ops_num, pattern);
 
     for (size_t i = 0; i < ops_num; ++i) {
       const auto id = target_ids.at(i);
@@ -311,9 +317,9 @@ class IndexFixture : public testing::Test
   VerifyInsertsWith(  //
       const bool write_twice,
       const bool with_delete,
-      const bool is_shuffled)
+      const AccessPattern pattern)
   {
-    const auto &target_ids = CreateTargetIDs(kExecNum, is_shuffled);
+    const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
 
     for (size_t i = 0; i < kExecNum; ++i) {
       const auto id = target_ids.at(i);
@@ -342,9 +348,9 @@ class IndexFixture : public testing::Test
   VerifyUpdatesWith(  //
       const bool with_write,
       const bool with_delete,
-      const bool is_shuffled)
+      const AccessPattern pattern)
   {
-    const auto &target_ids = CreateTargetIDs(kExecNum, is_shuffled);
+    const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
     const auto expect_update = with_write && !with_delete;
 
     if (with_write) {
@@ -374,9 +380,9 @@ class IndexFixture : public testing::Test
   VerifyDeletesWith(  //
       const bool with_write,
       const bool with_delete,
-      const bool is_shuffled)
+      const AccessPattern pattern)
   {
-    const auto &target_ids = CreateTargetIDs(kExecNum, is_shuffled);
+    const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
     const auto expect_delete = with_write && !with_delete;
 
     if (with_write) {

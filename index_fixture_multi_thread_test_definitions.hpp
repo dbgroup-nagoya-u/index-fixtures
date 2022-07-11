@@ -2,134 +2,194 @@
  * Write operation
  *------------------------------------------------------------------------------------*/
 
-TYPED_TEST(IndexMultiThreadFixture, WriteWithUniqueKeysSucceed)
+TYPED_TEST(IndexMultiThreadFixture, SequentialWriteWithUniqueKeysSucceed)
 {
-  TestFixture::VerifyWritesWith(!kWriteTwice, !kWithDelete, !kShuffled);
+  TestFixture::VerifyWritesWith(!kWriteTwice, !kWithDelete, kSequential);
 }
 
-TYPED_TEST(IndexMultiThreadFixture, WriteWithDuplicateKeysSucceed)
+TYPED_TEST(IndexMultiThreadFixture, SequentialWriteWithDuplicateKeysSucceed)
 {
-  TestFixture::VerifyWritesWith(kWriteTwice, !kWithDelete, !kShuffled);
+  TestFixture::VerifyWritesWith(kWriteTwice, !kWithDelete, kSequential);
 }
 
-TYPED_TEST(IndexMultiThreadFixture, WriteWithDeletedKeysSucceed)
+TYPED_TEST(IndexMultiThreadFixture, SequentialWriteWithDeletedKeysSucceed)
 {
-  TestFixture::VerifyWritesWith(kWriteTwice, kWithDelete, !kShuffled);
+  TestFixture::VerifyWritesWith(kWriteTwice, kWithDelete, kSequential);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, ReverseWriteWithUniqueKeysSucceed)
+{
+  TestFixture::VerifyWritesWith(!kWriteTwice, !kWithDelete, kReverse);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, ReverseWriteWithDuplicateKeysSucceed)
+{
+  TestFixture::VerifyWritesWith(kWriteTwice, !kWithDelete, kReverse);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, ReverseWriteWithDeletedKeysSucceed)
+{
+  TestFixture::VerifyWritesWith(kWriteTwice, kWithDelete, kReverse);
 }
 
 TYPED_TEST(IndexMultiThreadFixture, RandomWriteWithUniqueKeysSucceed)
 {
-  TestFixture::VerifyWritesWith(!kWriteTwice, !kWithDelete, kShuffled);
+  TestFixture::VerifyWritesWith(!kWriteTwice, !kWithDelete, kRandom);
 }
 
 TYPED_TEST(IndexMultiThreadFixture, RandomWriteWithDuplicateKeysSucceed)
 {
-  TestFixture::VerifyWritesWith(kWriteTwice, !kWithDelete, kShuffled);
+  TestFixture::VerifyWritesWith(kWriteTwice, !kWithDelete, kRandom);
 }
 
 TYPED_TEST(IndexMultiThreadFixture, RandomWriteWithDeletedKeysSucceed)
 {
-  TestFixture::VerifyWritesWith(kWriteTwice, kWithDelete, kShuffled);
+  TestFixture::VerifyWritesWith(kWriteTwice, kWithDelete, kRandom);
 }
 
 /*--------------------------------------------------------------------------------------
  * Insert operation
  *------------------------------------------------------------------------------------*/
 
-TYPED_TEST(IndexMultiThreadFixture, InsertWithUniqueKeysSucceed)
+TYPED_TEST(IndexMultiThreadFixture, SequentialInsertWithUniqueKeysSucceed)
 {
-  TestFixture::VerifyInsertsWith(!kWriteTwice, !kWithDelete, !kShuffled);
+  TestFixture::VerifyInsertsWith(!kWriteTwice, !kWithDelete, kSequential);
 }
 
-TYPED_TEST(IndexMultiThreadFixture, InsertWithDuplicateKeysFail)
+TYPED_TEST(IndexMultiThreadFixture, SequentialInsertWithDuplicateKeysFail)
 {
-  TestFixture::VerifyInsertsWith(kWriteTwice, !kWithDelete, !kShuffled);
+  TestFixture::VerifyInsertsWith(kWriteTwice, !kWithDelete, kSequential);
 }
 
-TYPED_TEST(IndexMultiThreadFixture, InsertWithDeletedKeysSucceed)
+TYPED_TEST(IndexMultiThreadFixture, SequentialInsertWithDeletedKeysSucceed)
 {
-  TestFixture::VerifyInsertsWith(kWriteTwice, kWithDelete, !kShuffled);
+  TestFixture::VerifyInsertsWith(kWriteTwice, kWithDelete, kSequential);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, ReverseInsertWithUniqueKeysSucceed)
+{
+  TestFixture::VerifyInsertsWith(!kWriteTwice, !kWithDelete, kReverse);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, ReverseInsertWithDuplicateKeysFail)
+{
+  TestFixture::VerifyInsertsWith(kWriteTwice, !kWithDelete, kReverse);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, ReverseInsertWithDeletedKeysSucceed)
+{
+  TestFixture::VerifyInsertsWith(kWriteTwice, kWithDelete, kReverse);
 }
 
 TYPED_TEST(IndexMultiThreadFixture, RandomInsertWithUniqueKeysSucceed)
 {
-  TestFixture::VerifyInsertsWith(!kWriteTwice, !kWithDelete, kShuffled);
+  TestFixture::VerifyInsertsWith(!kWriteTwice, !kWithDelete, kRandom);
 }
 
 TYPED_TEST(IndexMultiThreadFixture, RandomInsertWithDuplicateKeysFail)
 {
-  TestFixture::VerifyInsertsWith(kWriteTwice, !kWithDelete, kShuffled);
+  TestFixture::VerifyInsertsWith(kWriteTwice, !kWithDelete, kRandom);
 }
 
 TYPED_TEST(IndexMultiThreadFixture, RandomInsertWithDeletedKeysSucceed)
 {
-  TestFixture::VerifyInsertsWith(kWriteTwice, kWithDelete, kShuffled);
+  TestFixture::VerifyInsertsWith(kWriteTwice, kWithDelete, kRandom);
 }
 
 /*--------------------------------------------------------------------------------------
  * Update operation
  *------------------------------------------------------------------------------------*/
 
-TYPED_TEST(IndexMultiThreadFixture, UpdateWithDuplicateKeysSucceed)
+TYPED_TEST(IndexMultiThreadFixture, SequentialUpdateWithDuplicateKeysSucceed)
 {
-  TestFixture::VerifyUpdatesWith(kWithWrite, !kWithDelete, !kShuffled);
+  TestFixture::VerifyUpdatesWith(kWithWrite, !kWithDelete, kSequential);
 }
 
-TYPED_TEST(IndexMultiThreadFixture, UpdateWithNotInsertedKeysFail)
+TYPED_TEST(IndexMultiThreadFixture, SequentialUpdateWithNotInsertedKeysFail)
 {
-  TestFixture::VerifyUpdatesWith(!kWithWrite, !kWithDelete, !kShuffled);
+  TestFixture::VerifyUpdatesWith(!kWithWrite, !kWithDelete, kSequential);
 }
 
-TYPED_TEST(IndexMultiThreadFixture, UpdateWithDeletedKeysFail)
+TYPED_TEST(IndexMultiThreadFixture, SequentialUpdateWithDeletedKeysFail)
 {
-  TestFixture::VerifyUpdatesWith(kWithWrite, kWithDelete, !kShuffled);
+  TestFixture::VerifyUpdatesWith(kWithWrite, kWithDelete, kSequential);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, ReverseUpdateWithDuplicateKeysSucceed)
+{
+  TestFixture::VerifyUpdatesWith(kWithWrite, !kWithDelete, kReverse);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, ReverseUpdateWithNotInsertedKeysFail)
+{
+  TestFixture::VerifyUpdatesWith(!kWithWrite, !kWithDelete, kReverse);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, ReverseUpdateWithDeletedKeysFail)
+{
+  TestFixture::VerifyUpdatesWith(kWithWrite, kWithDelete, kReverse);
 }
 
 TYPED_TEST(IndexMultiThreadFixture, RandomUpdateWithDuplicateKeysSucceed)
 {
-  TestFixture::VerifyUpdatesWith(kWithWrite, !kWithDelete, kShuffled);
+  TestFixture::VerifyUpdatesWith(kWithWrite, !kWithDelete, kRandom);
 }
 
 TYPED_TEST(IndexMultiThreadFixture, RandomUpdateWithNotInsertedKeysFail)
 {
-  TestFixture::VerifyUpdatesWith(!kWithWrite, !kWithDelete, kShuffled);
+  TestFixture::VerifyUpdatesWith(!kWithWrite, !kWithDelete, kRandom);
 }
 
 TYPED_TEST(IndexMultiThreadFixture, RandomUpdateWithDeletedKeysFail)
 {
-  TestFixture::VerifyUpdatesWith(kWithWrite, kWithDelete, kShuffled);
+  TestFixture::VerifyUpdatesWith(kWithWrite, kWithDelete, kRandom);
 }
 
 /*--------------------------------------------------------------------------------------
  * Delete operation
  *------------------------------------------------------------------------------------*/
 
-TYPED_TEST(IndexMultiThreadFixture, DeleteWithDuplicateKeysSucceed)
+TYPED_TEST(IndexMultiThreadFixture, SequentialDeleteWithDuplicateKeysSucceed)
 {
-  TestFixture::VerifyDeletesWith(kWithWrite, !kWithDelete, !kShuffled);
+  TestFixture::VerifyDeletesWith(kWithWrite, !kWithDelete, kSequential);
 }
 
-TYPED_TEST(IndexMultiThreadFixture, DeleteWithNotInsertedKeysFail)
+TYPED_TEST(IndexMultiThreadFixture, SequentialDeleteWithNotInsertedKeysFail)
 {
-  TestFixture::VerifyDeletesWith(!kWithWrite, !kWithDelete, !kShuffled);
+  TestFixture::VerifyDeletesWith(!kWithWrite, !kWithDelete, kSequential);
 }
 
-TYPED_TEST(IndexMultiThreadFixture, DeleteWithDeletedKeysFail)
+TYPED_TEST(IndexMultiThreadFixture, SequentialDeleteWithDeletedKeysFail)
 {
-  TestFixture::VerifyDeletesWith(kWithWrite, kWithDelete, !kShuffled);
+  TestFixture::VerifyDeletesWith(kWithWrite, kWithDelete, kSequential);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, ReverseDeleteWithDuplicateKeysSucceed)
+{
+  TestFixture::VerifyDeletesWith(kWithWrite, !kWithDelete, kReverse);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, ReverseDeleteWithNotInsertedKeysFail)
+{
+  TestFixture::VerifyDeletesWith(!kWithWrite, !kWithDelete, kReverse);
+}
+
+TYPED_TEST(IndexMultiThreadFixture, ReverseDeleteWithDeletedKeysFail)
+{
+  TestFixture::VerifyDeletesWith(kWithWrite, kWithDelete, kReverse);
 }
 
 TYPED_TEST(IndexMultiThreadFixture, RandomDeleteWithDuplicateKeysSucceed)
 {
-  TestFixture::VerifyDeletesWith(kWithWrite, !kWithDelete, kShuffled);
+  TestFixture::VerifyDeletesWith(kWithWrite, !kWithDelete, kRandom);
 }
 
 TYPED_TEST(IndexMultiThreadFixture, RandomDeleteWithNotInsertedKeysFail)
 {
-  TestFixture::VerifyDeletesWith(!kWithWrite, !kWithDelete, kShuffled);
+  TestFixture::VerifyDeletesWith(!kWithWrite, !kWithDelete, kRandom);
 }
 
 TYPED_TEST(IndexMultiThreadFixture, RandomDeleteWithDeletedKeysFail)
 {
-  TestFixture::VerifyDeletesWith(kWithWrite, kWithDelete, kShuffled);
+  TestFixture::VerifyDeletesWith(kWithWrite, kWithDelete, kRandom);
 }

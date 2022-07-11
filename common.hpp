@@ -72,6 +72,12 @@ namespace dbgroup::index::test
  * Constants for testing
  *####################################################################################*/
 
+enum AccessPattern {
+  kSequential,
+  kReverse,
+  kRandom,
+};
+
 #ifdef INDEX_FIXTURE_EXEC_NUM_PER_THREAD
 constexpr size_t kExecNum = INDEX_FIXTURE_EXEC_NUM_PER_THREAD;
 #else
@@ -99,8 +105,6 @@ constexpr bool kWriteTwice = true;
 constexpr bool kWithWrite = true;
 
 constexpr bool kWithDelete = true;
-
-constexpr bool kShuffled = true;
 
 /*######################################################################################
  * Global utilities

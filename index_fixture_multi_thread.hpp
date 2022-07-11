@@ -156,7 +156,7 @@ class IndexMultiThreadFixture : public testing::Test
   [[nodiscard]] auto
   CreateTargetIDs(  //
       const size_t w_id,
-      const bool is_shuffled)  //
+      const AccessPattern pattern)  //
       -> std::vector<size_t>
   {
     std::vector<size_t> target_ids{};
@@ -164,11 +164,17 @@ class IndexMultiThreadFixture : public testing::Test
       std::shared_lock guard{s_mtx_};
 
       target_ids.reserve(kExecNum);
-      for (size_t i = 0; i < kExecNum; ++i) {
-        target_ids.emplace_back(kThreadNum * i + w_id);
+      if (pattern == kReverse) {
+        for (int64_t i = kExecNum - 1; i >= 0; --i) {
+          target_ids.emplace_back(kThreadNum * i + w_id);
+        }
+      } else {
+        for (size_t i = 0; i < kExecNum; ++i) {
+          target_ids.emplace_back(kThreadNum * i + w_id);
+        }
       }
 
-      if (is_shuffled) {
+      if (pattern == kRandom) {
         std::mt19937_64 rand_engine{kRandomSeed};
         std::shuffle(target_ids.begin(), target_ids.end(), rand_engine);
       }
@@ -207,10 +213,10 @@ class IndexMultiThreadFixture : public testing::Test
   VerifyRead(  //
       const bool expect_success,
       const bool is_update,
-      const bool is_shuffled)
+      const AccessPattern pattern)
   {
     auto mt_worker = [&](const size_t w_id) -> void {
-      for (const auto id : CreateTargetIDs(w_id, is_shuffled)) {
+      for (const auto id : CreateTargetIDs(w_id, pattern)) {
         const auto &read_val = index_->Read(keys_.at(id));
         if (expect_success) {
           ASSERT_TRUE(read_val);
@@ -229,10 +235,10 @@ class IndexMultiThreadFixture : public testing::Test
   void
   VerifyWrite(  //
       const bool is_update,
-      const bool is_shuffled)
+      const AccessPattern pattern)
   {
     auto mt_worker = [&](const size_t w_id) -> void {
-      for (const auto id : CreateTargetIDs(w_id, is_shuffled)) {
+      for (const auto id : CreateTargetIDs(w_id, pattern)) {
         const auto rc = Write(id, (is_update) ? w_id + kThreadNum : w_id);
         EXPECT_EQ(rc, 0);
       }
@@ -244,10 +250,10 @@ class IndexMultiThreadFixture : public testing::Test
   void
   VerifyInsert(  //
       const bool expect_success,
-      const bool is_shuffled)
+      const AccessPattern pattern)
   {
     auto mt_worker = [&](const size_t w_id) -> void {
-      for (const auto id : CreateTargetIDs(w_id, is_shuffled)) {
+      for (const auto id : CreateTargetIDs(w_id, pattern)) {
         const auto rc = Insert(id, w_id);
         if (expect_success) {
           EXPECT_EQ(rc, 0);
@@ -263,10 +269,10 @@ class IndexMultiThreadFixture : public testing::Test
   void
   VerifyUpdate(  //
       const bool expect_success,
-      const bool is_shuffled)
+      const AccessPattern pattern)
   {
     auto mt_worker = [&](const size_t w_id) -> void {
-      for (const auto id : CreateTargetIDs(w_id, is_shuffled)) {
+      for (const auto id : CreateTargetIDs(w_id, pattern)) {
         const auto rc = Update(id, w_id + kThreadNum);
         if (expect_success) {
           EXPECT_EQ(rc, 0);
@@ -282,10 +288,10 @@ class IndexMultiThreadFixture : public testing::Test
   void
   VerifyDelete(  //
       const bool expect_success,
-      const bool is_shuffled)
+      const AccessPattern pattern)
   {
     auto mt_worker = [&](const size_t w_id) -> void {
-      for (const auto id : CreateTargetIDs(w_id, is_shuffled)) {
+      for (const auto id : CreateTargetIDs(w_id, pattern)) {
         const auto rc = Delete(id);
         if (expect_success) {
           EXPECT_EQ(rc, 0);
@@ -302,52 +308,52 @@ class IndexMultiThreadFixture : public testing::Test
   VerifyWritesWith(  //
       const bool write_twice,
       const bool with_delete,
-      const bool is_shuffled)
+      const AccessPattern pattern)
   {
-    VerifyWrite(!kWriteTwice, is_shuffled);
-    if (with_delete) VerifyDelete(kExpectSuccess, is_shuffled);
-    if (write_twice) VerifyWrite(kWriteTwice, is_shuffled);
-    VerifyRead(kExpectSuccess, write_twice, is_shuffled);
+    VerifyWrite(!kWriteTwice, pattern);
+    if (with_delete) VerifyDelete(kExpectSuccess, pattern);
+    if (write_twice) VerifyWrite(kWriteTwice, pattern);
+    VerifyRead(kExpectSuccess, write_twice, pattern);
   }
 
   void
   VerifyInsertsWith(  //
       const bool write_twice,
       const bool with_delete,
-      const bool is_shuffled)
+      const AccessPattern pattern)
   {
-    VerifyInsert(kExpectSuccess, is_shuffled);
-    if (with_delete) VerifyDelete(kExpectSuccess, is_shuffled);
-    if (write_twice) VerifyInsert(with_delete, is_shuffled);
-    VerifyRead(kExpectSuccess, !kWriteTwice, is_shuffled);
+    VerifyInsert(kExpectSuccess, pattern);
+    if (with_delete) VerifyDelete(kExpectSuccess, pattern);
+    if (write_twice) VerifyInsert(with_delete, pattern);
+    VerifyRead(kExpectSuccess, !kWriteTwice, pattern);
   }
 
   void
   VerifyUpdatesWith(  //
       const bool with_write,
       const bool with_delete,
-      const bool is_shuffled)
+      const AccessPattern pattern)
   {
     const auto expect_success = with_write && !with_delete;
 
-    if (with_write) VerifyWrite(!kWriteTwice, is_shuffled);
-    if (with_delete) VerifyDelete(with_write, is_shuffled);
-    VerifyUpdate(expect_success, is_shuffled);
-    VerifyRead(expect_success, kWriteTwice, is_shuffled);
+    if (with_write) VerifyWrite(!kWriteTwice, pattern);
+    if (with_delete) VerifyDelete(with_write, pattern);
+    VerifyUpdate(expect_success, pattern);
+    VerifyRead(expect_success, kWriteTwice, pattern);
   }
 
   void
   VerifyDeletesWith(  //
       const bool with_write,
       const bool with_delete,
-      const bool is_shuffled)
+      const AccessPattern pattern)
   {
     const auto expect_success = with_write && !with_delete;
 
-    if (with_write) VerifyWrite(!kWriteTwice, is_shuffled);
-    if (with_delete) VerifyDelete(with_write, is_shuffled);
-    VerifyDelete(expect_success, is_shuffled);
-    VerifyRead(kExpectFailed, !kWriteTwice, is_shuffled);
+    if (with_write) VerifyWrite(!kWriteTwice, pattern);
+    if (with_delete) VerifyDelete(with_write, pattern);
+    VerifyDelete(expect_success, pattern);
+    VerifyRead(kExpectFailed, !kWriteTwice, pattern);
   }
 
   /*####################################################################################
