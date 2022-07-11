@@ -76,7 +76,7 @@ class IndexMultiThreadFixture : public testing::Test
 #endif
 
   static constexpr size_t kKeyLen = GetDataLength<Key>();
-  static constexpr size_t kKeyNum = kExecNum * kThreadNum;
+  static constexpr size_t kKeyNum = kExecNum * kThreadNum + 1;
   static constexpr size_t kWaitForThreadCreation = 100;
 
   /*####################################################################################
@@ -233,6 +233,36 @@ class IndexMultiThreadFixture : public testing::Test
   }
 
   void
+  VerifyScan(  //
+      const bool expect_success,
+      const bool is_update)
+  {
+    auto mt_worker = [&](const size_t w_id) -> void {
+      size_t begin_id = kExecNum * w_id;
+      const auto &begin_key = std::make_pair(keys_.at(begin_id), kRangeClosed);
+
+      size_t end_id = kExecNum * (w_id + 1);
+      const auto &end_key = std::make_pair(keys_.at(end_id), kRangeOpened);
+
+      auto &&iter = index_->Scan(begin_key, end_key);
+      if (expect_success) {
+        for (; iter.HasNext(); ++iter, ++begin_id) {
+          const auto key_id = begin_id;
+          const auto val_id = (is_update) ? key_id % kThreadNum + kThreadNum : key_id % kThreadNum;
+
+          const auto &[key, payload] = *iter;
+          EXPECT_TRUE(IsEqual<KeyComp>(keys_.at(key_id), key));
+          EXPECT_TRUE(IsEqual<PayComp>(payloads_.at(val_id), payload));
+        }
+        EXPECT_EQ(begin_id, end_id);
+      }
+      EXPECT_FALSE(iter.HasNext());
+    };
+
+    RunMT(mt_worker);
+  }
+
+  void
   VerifyWrite(  //
       const bool is_update,
       const AccessPattern pattern)
@@ -250,11 +280,12 @@ class IndexMultiThreadFixture : public testing::Test
   void
   VerifyInsert(  //
       const bool expect_success,
+      const bool is_update,
       const AccessPattern pattern)
   {
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
-        const auto rc = Insert(id, w_id);
+        const auto rc = Insert(id, (is_update) ? w_id + kThreadNum : w_id);
         if (expect_success) {
           EXPECT_EQ(rc, 0);
         } else {
@@ -314,6 +345,7 @@ class IndexMultiThreadFixture : public testing::Test
     if (with_delete) VerifyDelete(kExpectSuccess, pattern);
     if (write_twice) VerifyWrite(kWriteTwice, pattern);
     VerifyRead(kExpectSuccess, write_twice, pattern);
+    VerifyScan(kExpectSuccess, write_twice);
   }
 
   void
@@ -322,10 +354,14 @@ class IndexMultiThreadFixture : public testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
-    VerifyInsert(kExpectSuccess, pattern);
+    const auto expect_success = !with_delete || write_twice;
+    const auto is_updated = with_delete && write_twice;
+
+    VerifyInsert(kExpectSuccess, !kWriteTwice, pattern);
     if (with_delete) VerifyDelete(kExpectSuccess, pattern);
-    if (write_twice) VerifyInsert(with_delete, pattern);
-    VerifyRead(kExpectSuccess, !kWriteTwice, pattern);
+    if (write_twice) VerifyInsert(with_delete, write_twice, pattern);
+    VerifyRead(expect_success, is_updated, pattern);
+    VerifyScan(expect_success, is_updated);
   }
 
   void
@@ -340,6 +376,7 @@ class IndexMultiThreadFixture : public testing::Test
     if (with_delete) VerifyDelete(with_write, pattern);
     VerifyUpdate(expect_success, pattern);
     VerifyRead(expect_success, kWriteTwice, pattern);
+    VerifyScan(expect_success, kWriteTwice);
   }
 
   void
@@ -354,6 +391,7 @@ class IndexMultiThreadFixture : public testing::Test
     if (with_delete) VerifyDelete(with_write, pattern);
     VerifyDelete(expect_success, pattern);
     VerifyRead(kExpectFailed, !kWriteTwice, pattern);
+    VerifyScan(kExpectFailed, !kWriteTwice);
   }
 
   /*####################################################################################
