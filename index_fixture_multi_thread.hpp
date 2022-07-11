@@ -36,16 +36,6 @@
 namespace dbgroup::index::test
 {
 /*######################################################################################
- * Constants for multi threading
- *####################################################################################*/
-
-#ifdef INDEX_FIXTURE_THREAD_NUM
-static constexpr size_t kThreadNum = INDEX_FIXTURE_THREAD_NUM;
-#else
-static constexpr size_t kThreadNum = 8;
-#endif
-
-/*######################################################################################
  * Classes for templated testing
  *####################################################################################*/
 
@@ -79,8 +69,15 @@ class IndexMultiThreadFixture : public testing::Test
    * Internal constants
    *##################################################################################*/
 
+#ifdef INDEX_FIXTURE_THREAD_NUM
+  static constexpr size_t kThreadNum = INDEX_FIXTURE_THREAD_NUM;
+#else
+  static constexpr size_t kThreadNum = 8;
+#endif
+
   static constexpr size_t kKeyLen = GetDataLength<Key>();
   static constexpr size_t kKeyNum = kExecNum * kThreadNum;
+  static constexpr size_t kWaitForThreadCreation = 100;
 
   /*####################################################################################
    * Setup/Teardown
@@ -191,7 +188,7 @@ class IndexMultiThreadFixture : public testing::Test
       threads.emplace_back(func, i);
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds{100});
+    std::this_thread::sleep_for(std::chrono::milliseconds{kWaitForThreadCreation});
     std::lock_guard guard{s_mtx_};
 
     is_ready_ = true;
