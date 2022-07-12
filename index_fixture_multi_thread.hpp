@@ -438,6 +438,56 @@ class IndexMultiThreadFixture : public testing::Test
   }
 
   void
+  VerifyConcurrentSMOs()
+  {
+    if (!HasWriteOperation<ImplStat>()       //
+        || !HasDeleteOperation<ImplStat>())  //
+    {
+      GTEST_SKIP();
+    }
+
+    constexpr size_t kRepeatNum = 5;
+
+    auto init_worker = [&](const size_t w_id) -> void {
+      if (w_id % 2 == 0) {
+        for (const auto id : CreateTargetIDs(w_id, kRandom)) {
+          EXPECT_EQ(Write(id, w_id), 0);
+        }
+      }
+    };
+
+    auto even_delete_worker = [&](const size_t w_id) -> void {
+      if (w_id % 2 == 0) {
+        for (const auto id : CreateTargetIDs(w_id, kRandom)) {
+          EXPECT_EQ(Delete(id), 0);
+        }
+      } else {
+        for (const auto id : CreateTargetIDs(w_id, kRandom)) {
+          EXPECT_EQ(Write(id, w_id), 0);
+        }
+      }
+    };
+
+    auto odd_delete_worker = [&](const size_t w_id) -> void {
+      if (w_id % 2 == 0) {
+        for (const auto id : CreateTargetIDs(w_id, kRandom)) {
+          EXPECT_EQ(Write(id, w_id), 0);
+        }
+      } else {
+        for (const auto id : CreateTargetIDs(w_id, kRandom)) {
+          EXPECT_EQ(Delete(id), 0);
+        }
+      }
+    };
+
+    RunMT(init_worker);
+    for (size_t i = 0; i < kRepeatNum; ++i) {
+      RunMT(even_delete_worker);
+      RunMT(odd_delete_worker);
+    }
+  }
+
+  void
   VerifyBulkloadWith(  //
       const WriteOperation write_ops,
       const AccessPattern pattern)
