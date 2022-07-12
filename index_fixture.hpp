@@ -30,17 +30,6 @@
 namespace dbgroup::index::test
 {
 /*######################################################################################
- * Classes for templated testing
- *####################################################################################*/
-
-template <template <class K, class V, class C> class IndexType, class KeyType, class PayloadType>
-struct IndexInfo {
-  using Key = KeyType;
-  using Payload = PayloadType;
-  using Index = IndexType<typename Key::Data, typename Payload::Data, typename Key::Comp>;
-};
-
-/*######################################################################################
  * Fixture class definition
  *####################################################################################*/
 
@@ -56,7 +45,8 @@ class IndexFixture : public testing::Test
   using Payload = typename IndexInfo::Payload::Data;
   using KeyComp = typename IndexInfo::Key::Comp;
   using PayComp = typename IndexInfo::Payload::Comp;
-  using Index = typename IndexInfo::Index;
+  using Index_t = typename IndexInfo::Index_t;
+  using ImplStat = typename IndexInfo::ImplStatus;
 
  protected:
   /*####################################################################################
@@ -79,7 +69,7 @@ class IndexFixture : public testing::Test
     keys_ = PrepareTestData<Key>(kKeyNum);
     payloads_ = PrepareTestData<Payload>(kKeyNum);
 
-    index_ = std::make_unique<Index>();
+    index_ = std::make_unique<Index_t>();
   }
 
   void
@@ -127,10 +117,12 @@ class IndexFixture : public testing::Test
       const size_t key_id,
       const size_t pay_id)
   {
-    if constexpr (std::is_same_v<Key, char *>) {
-      return index_->Write(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
-    } else {
-      return index_->Write(keys_.at(key_id), payloads_.at(pay_id));
+    if constexpr (HasWriteOperation<ImplStat>()) {
+      if constexpr (std::is_same_v<Key, char *>) {
+        return index_->Write(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
+      } else {
+        return index_->Write(keys_.at(key_id), payloads_.at(pay_id));
+      }
     }
   }
 
@@ -139,10 +131,12 @@ class IndexFixture : public testing::Test
       const size_t key_id,
       const size_t pay_id)
   {
-    if constexpr (std::is_same_v<Key, char *>) {
-      return index_->Insert(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
-    } else {
-      return index_->Insert(keys_.at(key_id), payloads_.at(pay_id));
+    if constexpr (HasInsertOperation<ImplStat>()) {
+      if constexpr (std::is_same_v<Key, char *>) {
+        return index_->Insert(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
+      } else {
+        return index_->Insert(keys_.at(key_id), payloads_.at(pay_id));
+      }
     }
   }
 
@@ -151,28 +145,42 @@ class IndexFixture : public testing::Test
       const size_t key_id,
       const size_t pay_id)
   {
-    if constexpr (std::is_same_v<Key, char *>) {
-      return index_->Update(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
-    } else {
-      return index_->Update(keys_.at(key_id), payloads_.at(pay_id));
+    if constexpr (HasUpdateOperation<ImplStat>()) {
+      if constexpr (std::is_same_v<Key, char *>) {
+        return index_->Update(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
+      } else {
+        return index_->Update(keys_.at(key_id), payloads_.at(pay_id));
+      }
     }
   }
 
   auto
   Delete(const size_t key_id)
   {
-    if constexpr (std::is_same_v<Key, char *>) {
-      return index_->Delete(keys_.at(key_id), kKeyLen);
-    } else {
-      return index_->Delete(keys_.at(key_id));
+    if constexpr (HasDeleteOperation<ImplStat>()) {
+      if constexpr (std::is_same_v<Key, char *>) {
+        return index_->Delete(keys_.at(key_id), kKeyLen);
+      } else {
+        return index_->Delete(keys_.at(key_id));
+      }
     }
   }
 
   void
   FillIndex()
   {
+    if (!HasScanOperation<ImplStat>()                                            //
+        || (!HasWriteOperation<ImplStat>() && !HasInsertOperation<ImplStat>()))  //
+    {
+      GTEST_SKIP();
+    }
+
     for (size_t i = 0; i < kExecNum; ++i) {
-      Write(i, i);
+      if constexpr (HasWriteOperation<ImplStat>()) {
+        Write(i, i);
+      } else {
+        Insert(i, i);
+      }
     }
   }
 
@@ -210,35 +218,37 @@ class IndexFixture : public testing::Test
       const bool expect_success = true,
       const bool write_twice = false)
   {
-    std::optional<std::pair<const Key &, bool>> begin_key = std::nullopt;
-    size_t begin_pos = 0;
-    if (begin_ref) {
-      auto &&[begin_id, begin_closed] = *begin_ref;
-      begin_key.emplace(keys_.at(begin_id), begin_closed);
-      begin_pos = (begin_closed) ? begin_id : begin_id + 1;
-    }
-
-    std::optional<std::pair<const Key &, bool>> end_key = std::nullopt;
-    size_t end_pos = 0;
-    if (end_ref) {
-      auto &&[end_id, end_closed] = *end_ref;
-      end_key.emplace(keys_.at(end_id), end_closed);
-      end_pos = (end_closed) ? end_id + 1 : end_id;
-    }
-
-    auto &&iter = index_->Scan(begin_key, end_key);
-    if (expect_success) {
-      for (; iter.HasNext(); ++iter, ++begin_pos) {
-        const auto &[key, payload] = *iter;
-        const auto val_id = (write_twice) ? begin_pos + 1 : begin_pos;
-        EXPECT_TRUE(IsEqual<KeyComp>(keys_.at(begin_pos), key));
-        EXPECT_TRUE(IsEqual<PayComp>(payloads_.at(val_id), payload));
+    if constexpr (HasScanOperation<ImplStat>()) {
+      std::optional<std::pair<const Key &, bool>> begin_key = std::nullopt;
+      size_t begin_pos = 0;
+      if (begin_ref) {
+        auto &&[begin_id, begin_closed] = *begin_ref;
+        begin_key.emplace(keys_.at(begin_id), begin_closed);
+        begin_pos = (begin_closed) ? begin_id : begin_id + 1;
       }
+
+      std::optional<std::pair<const Key &, bool>> end_key = std::nullopt;
+      size_t end_pos = 0;
       if (end_ref) {
-        EXPECT_EQ(begin_pos, end_pos);
+        auto &&[end_id, end_closed] = *end_ref;
+        end_key.emplace(keys_.at(end_id), end_closed);
+        end_pos = (end_closed) ? end_id + 1 : end_id;
       }
+
+      auto &&iter = index_->Scan(begin_key, end_key);
+      if (expect_success) {
+        for (; iter.HasNext(); ++iter, ++begin_pos) {
+          const auto &[key, payload] = *iter;
+          const auto val_id = (write_twice) ? begin_pos + 1 : begin_pos;
+          EXPECT_TRUE(IsEqual<KeyComp>(keys_.at(begin_pos), key));
+          EXPECT_TRUE(IsEqual<PayComp>(payloads_.at(val_id), payload));
+        }
+        if (end_ref) {
+          EXPECT_EQ(begin_pos, end_pos);
+        }
+      }
+      EXPECT_FALSE(iter.HasNext());
     }
-    EXPECT_FALSE(iter.HasNext());
   }
 
   void
@@ -312,14 +322,16 @@ class IndexFixture : public testing::Test
   void
   VerifyBulkload()
   {
-    std::vector<Record> entries{};
-    entries.reserve(kExecNum);
-    for (size_t i = 0; i < kExecNum; ++i) {
-      entries.emplace_back(keys_.at(i), payloads_.at(i), kKeyLen);
-    }
+    if constexpr (HasBulkloadOperation<ImplStat>()) {
+      std::vector<Record<Key, Payload>> entries{};
+      entries.reserve(kExecNum);
+      for (size_t i = 0; i < kExecNum; ++i) {
+        entries.emplace_back(keys_.at(i), payloads_.at(i), kKeyLen);
+      }
 
-    const auto rc = index_->Bulkload(entries, 1);
-    EXPECT_EQ(rc, 0);
+      const auto rc = index_->Bulkload(entries, 1);
+      EXPECT_EQ(rc, 0);
+    }
   }
 
   void
@@ -329,6 +341,12 @@ class IndexFixture : public testing::Test
       const AccessPattern pattern,
       const size_t ops_num = kExecNum)
   {
+    if (!HasWriteOperation<ImplStat>()                        //
+        || (with_delete && !HasDeleteOperation<ImplStat>()))  //
+    {
+      GTEST_SKIP();
+    }
+
     const auto &target_ids = CreateTargetIDs(ops_num, pattern);
     const auto &begin_ref = std::make_pair(0, kRangeClosed);
     const auto &end_ref = std::make_pair(ops_num, kRangeOpened);
@@ -346,6 +364,12 @@ class IndexFixture : public testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
+    if (!HasInsertOperation<ImplStat>()                       //
+        || (with_delete && !HasDeleteOperation<ImplStat>()))  //
+    {
+      GTEST_SKIP();
+    }
+
     const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
     const auto &begin_ref = std::make_pair(0, kRangeClosed);
     const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
@@ -365,6 +389,13 @@ class IndexFixture : public testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
+    if (!HasUpdateOperation<ImplStat>()  //
+        || (with_write && !HasWriteOperation<ImplStat>())
+        || (with_delete && !HasDeleteOperation<ImplStat>()))  //
+    {
+      GTEST_SKIP();
+    }
+
     const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
     const auto &begin_ref = std::make_pair(0, kRangeClosed);
     const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
@@ -383,6 +414,12 @@ class IndexFixture : public testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
+    if (!HasDeleteOperation<ImplStat>()                     //
+        || (with_write && !HasWriteOperation<ImplStat>()))  //
+    {
+      GTEST_SKIP();
+    }
+
     const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
     const auto &begin_ref = std::make_pair(0, kRangeClosed);
     const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
@@ -400,6 +437,15 @@ class IndexFixture : public testing::Test
       const WriteOperation write_ops,
       const AccessPattern pattern)
   {
+    if (!HasBulkloadOperation<ImplStat>()                              //
+        || (write_ops == kWrite && !HasWriteOperation<ImplStat>())     //
+        || (write_ops == kInsert && !HasInsertOperation<ImplStat>())   //
+        || (write_ops == kUpdate && !HasUpdateOperation<ImplStat>())   //
+        || (write_ops == kDelete && !HasDeleteOperation<ImplStat>()))  //
+    {
+      GTEST_SKIP();
+    }
+
     const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
     const auto &begin_ref = std::make_pair(0, kRangeClosed);
     const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
@@ -442,7 +488,7 @@ class IndexFixture : public testing::Test
   std::vector<Payload> payloads_{};
 
   /// an index for testing
-  std::unique_ptr<Index> index_{nullptr};
+  std::unique_ptr<Index_t> index_{nullptr};
 };
 
 }  // namespace dbgroup::index::test

@@ -118,6 +118,17 @@ constexpr bool kWithDelete = true;
  * Global utilities
  *####################################################################################*/
 
+template <template <class K, class V, class C> class IndexType,
+          class KeyType,
+          class PayloadType,
+          class ImplementationStatus = void>
+struct IndexInfo {
+  using Key = KeyType;
+  using Payload = PayloadType;
+  using Index_t = IndexType<typename Key::Data, typename Payload::Data, typename Key::Comp>;
+  using ImplStatus = ImplementationStatus;
+};
+
 struct VarData {
   char data[kVarDataLength]{};
 };
@@ -271,6 +282,54 @@ ReleaseTestData([[maybe_unused]] std::vector<T> &data_vec)
   } else if constexpr (std::is_same_v<T, uint64_t *>) {
     delete[] data_vec.front();
   }
+}
+
+template <class ImplStat>
+constexpr auto
+HasScanOperation()  //
+    -> bool
+{
+  return true;
+}
+
+template <class ImplStat>
+constexpr auto
+HasWriteOperation()  //
+    -> bool
+{
+  return true;
+}
+
+template <class ImplStat>
+constexpr auto
+HasInsertOperation()  //
+    -> bool
+{
+  return true;
+}
+
+template <class ImplStat>
+constexpr auto
+HasUpdateOperation()  //
+    -> bool
+{
+  return true;
+}
+
+template <class ImplStat>
+constexpr auto
+HasDeleteOperation()  //
+    -> bool
+{
+  return true;
+}
+
+template <class ImplStat>
+constexpr auto
+HasBulkloadOperation()  //
+    -> bool
+{
+  return true;
 }
 
 /*######################################################################################
