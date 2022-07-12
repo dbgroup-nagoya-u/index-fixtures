@@ -95,7 +95,7 @@ constexpr size_t kExecNum = 1E6;
 #ifdef INDEX_FIXTURE_RANDOM_SEED
 constexpr size_t kRandomSeed = INDEX_FIXTURE_RANDOM_SEED;
 #else
-constexpr size_t kRandomSeed = 8;
+constexpr size_t kRandomSeed = 0;
 #endif
 
 constexpr size_t kVarDataLength = 12;
