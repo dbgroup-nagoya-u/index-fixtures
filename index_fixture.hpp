@@ -20,6 +20,9 @@
 #include <algorithm>
 #include <memory>
 #include <random>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 // external libraries
 #include "gtest/gtest.h"
@@ -323,14 +326,25 @@ class IndexFixture : public testing::Test
   VerifyBulkload()
   {
     if constexpr (HasBulkloadOperation<ImplStat>()) {
-      std::vector<Record<Key, Payload>> entries{};
-      entries.reserve(kExecNum);
-      for (size_t i = 0; i < kExecNum; ++i) {
-        entries.emplace_back(keys_.at(i), payloads_.at(i), kKeyLen);
-      }
+      if constexpr (IsVarLen<Key>()) {
+        std::vector<tuple<Key, Payload, size_t>> entries{};
+        entries.reserve(kExecNum);
+        for (size_t i = 0; i < kExecNum; ++i) {
+          entries.emplace_back(keys_.at(i), payloads_.at(i), kKeyLen);
+        }
 
-      const auto rc = index_->Bulkload(entries, 1);
-      EXPECT_EQ(rc, 0);
+        const auto rc = index_->Bulkload(entries, 1);
+        EXPECT_EQ(rc, 0);
+      } else {
+        std::vector<std::pair<Key, Payload>> entries{};
+        entries.reserve(kExecNum);
+        for (size_t i = 0; i < kExecNum; ++i) {
+          entries.emplace_back(keys_.at(i), payloads_.at(i));
+        }
+
+        const auto rc = index_->Bulkload(entries, 1);
+        EXPECT_EQ(rc, 0);
+      }
     }
   }
 

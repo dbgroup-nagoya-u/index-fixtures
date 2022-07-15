@@ -25,6 +25,8 @@
 #include <mutex>
 #include <random>
 #include <shared_mutex>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 // external libraries
@@ -341,15 +343,25 @@ class IndexMultiThreadFixture : public testing::Test
   {
     if constexpr (HasBulkloadOperation<ImplStat>()) {
       constexpr size_t kOpsNum = kExecNum * kThreadNum;
+      if constexpr (IsVarLen<Key>()) {
+        std::vector<std::tuple<Key, Payload, size_t>> entries{};
+        entries.reserve(kOpsNum);
+        for (size_t i = 0; i < kOpsNum; ++i) {
+          entries.emplace_back(keys_.at(i), payloads_.at(i), kKeyLen);
+        }
 
-      std::vector<Record<Key, Payload>> entries{};
-      entries.reserve(kOpsNum);
-      for (size_t i = 0; i < kOpsNum; ++i) {
-        entries.emplace_back(keys_.at(i), payloads_.at(i), kKeyLen);
+        const auto rc = index_->Bulkload(entries, kThreadNum);
+        EXPECT_EQ(rc, 0);
+      } else {
+        std::vector<std::pair<Key, Payload>> entries{};
+        entries.reserve(kOpsNum);
+        for (size_t i = 0; i < kOpsNum; ++i) {
+          entries.emplace_back(keys_.at(i), payloads_.at(i));
+        }
+
+        const auto rc = index_->Bulkload(entries, kThreadNum);
+        EXPECT_EQ(rc, 0);
       }
-
-      const auto rc = index_->Bulkload(entries, kThreadNum);
-      EXPECT_EQ(rc, 0);
     }
   }
 
