@@ -327,7 +327,7 @@ class IndexFixture : public testing::Test
   {
     if constexpr (HasBulkloadOperation<ImplStat>()) {
       if constexpr (IsVarLen<Key>()) {
-        std::vector<tuple<Key, Payload, size_t>> entries{};
+        std::vector<std::tuple<Key, Payload, size_t>> entries{};
         entries.reserve(kExecNum);
         for (size_t i = 0; i < kExecNum; ++i) {
           entries.emplace_back(keys_.at(i), payloads_.at(i), kKeyLen);

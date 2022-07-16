@@ -347,7 +347,7 @@ class IndexMultiThreadFixture : public testing::Test
         std::vector<std::tuple<Key, Payload, size_t>> entries{};
         entries.reserve(kOpsNum);
         for (size_t i = 0; i < kOpsNum; ++i) {
-          entries.emplace_back(keys_.at(i), payloads_.at(i), kKeyLen);
+          entries.emplace_back(keys_.at(i), payloads_.at(i % kThreadNum), kKeyLen);
         }
 
         const auto rc = index_->Bulkload(entries, kThreadNum);
@@ -356,7 +356,7 @@ class IndexMultiThreadFixture : public testing::Test
         std::vector<std::pair<Key, Payload>> entries{};
         entries.reserve(kOpsNum);
         for (size_t i = 0; i < kOpsNum; ++i) {
-          entries.emplace_back(keys_.at(i), payloads_.at(i));
+          entries.emplace_back(keys_.at(i), payloads_.at(i % kThreadNum));
         }
 
         const auto rc = index_->Bulkload(entries, kThreadNum);

@@ -47,5 +47,7 @@
   "plantuml.exportFormat": "svg",
   "plantuml.exportSubFolder": false,
   // local dictionary
-  "cSpell.words": [],
+  "cSpell.words": [
+    "GTEST"
+  ],
 }
