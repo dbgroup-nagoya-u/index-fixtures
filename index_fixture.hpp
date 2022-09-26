@@ -50,6 +50,7 @@ class IndexFixture : public testing::Test
   using PayComp = typename IndexInfo::Payload::Comp;
   using Index_t = typename IndexInfo::Index_t;
   using ImplStat = typename IndexInfo::ImplStatus;
+  using ScanKey = std::optional<std::tuple<const Key &, size_t, bool>>;
 
  protected:
   /*####################################################################################
@@ -121,11 +122,7 @@ class IndexFixture : public testing::Test
       [[maybe_unused]] const size_t pay_id)
   {
     if constexpr (HasWriteOperation<ImplStat>()) {
-      if constexpr (std::is_same_v<Key, char *>) {
-        return index_->Write(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
-      } else {
-        return index_->Write(keys_.at(key_id), payloads_.at(pay_id));
-      }
+      return index_->Write(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
     } else {
       return 0;
     }
@@ -137,11 +134,7 @@ class IndexFixture : public testing::Test
       [[maybe_unused]] const size_t pay_id)
   {
     if constexpr (HasInsertOperation<ImplStat>()) {
-      if constexpr (std::is_same_v<Key, char *>) {
-        return index_->Insert(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
-      } else {
-        return index_->Insert(keys_.at(key_id), payloads_.at(pay_id));
-      }
+      return index_->Insert(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
     } else {
       return 0;
     }
@@ -153,11 +146,7 @@ class IndexFixture : public testing::Test
       [[maybe_unused]] const size_t pay_id)
   {
     if constexpr (HasUpdateOperation<ImplStat>()) {
-      if constexpr (std::is_same_v<Key, char *>) {
-        return index_->Update(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
-      } else {
-        return index_->Update(keys_.at(key_id), payloads_.at(pay_id));
-      }
+      return index_->Update(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
     } else {
       return 0;
     }
@@ -167,11 +156,7 @@ class IndexFixture : public testing::Test
   Delete([[maybe_unused]] const size_t key_id)
   {
     if constexpr (HasDeleteOperation<ImplStat>()) {
-      if constexpr (std::is_same_v<Key, char *>) {
-        return index_->Delete(keys_.at(key_id), kKeyLen);
-      } else {
-        return index_->Delete(keys_.at(key_id));
-      }
+      return index_->Delete(keys_.at(key_id), kKeyLen);
     } else {
       return 0;
     }
@@ -209,7 +194,7 @@ class IndexFixture : public testing::Test
       const auto key_id = target_ids.at(i);
       const auto pay_id = (write_twice) ? key_id + 1 : key_id;
 
-      const auto read_val = index_->Read(keys_.at(key_id));
+      const auto read_val = index_->Read(keys_.at(key_id), kKeyLen);
       if (expect_success) {
         EXPECT_TRUE(read_val);
 
@@ -230,19 +215,19 @@ class IndexFixture : public testing::Test
       [[maybe_unused]] const bool write_twice = false)
   {
     if constexpr (HasScanOperation<ImplStat>()) {
-      std::optional<std::pair<const Key &, bool>> begin_key = std::nullopt;
+      ScanKey begin_key = std::nullopt;
       size_t begin_pos = 0;
       if (begin_ref) {
         auto &&[begin_id, begin_closed] = *begin_ref;
-        begin_key.emplace(keys_.at(begin_id), begin_closed);
+        begin_key.emplace(keys_.at(begin_id), kKeyLen, begin_closed);
         begin_pos = (begin_closed) ? begin_id : begin_id + 1;
       }
 
-      std::optional<std::pair<const Key &, bool>> end_key = std::nullopt;
+      ScanKey end_key = std::nullopt;
       size_t end_pos = 0;
       if (end_ref) {
         auto &&[end_id, end_closed] = *end_ref;
-        end_key.emplace(keys_.at(end_id), end_closed);
+        end_key.emplace(keys_.at(end_id), kKeyLen, end_closed);
         end_pos = (end_closed) ? end_id + 1 : end_id;
       }
 

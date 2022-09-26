@@ -55,6 +55,7 @@ class IndexMultiThreadFixture : public testing::Test
   using PayComp = typename IndexInfo::Payload::Comp;
   using Index_t = typename IndexInfo::Index_t;
   using ImplStat = typename IndexInfo::ImplStatus;
+  using ScanKey = std::optional<std::tuple<const Key &, size_t, bool>>;
 
  protected:
   /*####################################################################################
@@ -105,11 +106,7 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const size_t pay_id)
   {
     if constexpr (HasWriteOperation<ImplStat>()) {
-      if constexpr (std::is_same_v<Key, char *>) {
-        return index_->Write(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
-      } else {
-        return index_->Write(keys_.at(key_id), payloads_.at(pay_id));
-      }
+      return index_->Write(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
     } else {
       return 0;
     }
@@ -121,11 +118,7 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const size_t pay_id)
   {
     if constexpr (HasInsertOperation<ImplStat>()) {
-      if constexpr (std::is_same_v<Key, char *>) {
-        return index_->Insert(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
-      } else {
-        return index_->Insert(keys_.at(key_id), payloads_.at(pay_id));
-      }
+      return index_->Insert(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
     } else {
       return 0;
     }
@@ -137,11 +130,7 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const size_t pay_id)
   {
     if constexpr (HasUpdateOperation<ImplStat>()) {
-      if constexpr (std::is_same_v<Key, char *>) {
-        return index_->Update(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
-      } else {
-        return index_->Update(keys_.at(key_id), payloads_.at(pay_id));
-      }
+      return index_->Update(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
     } else {
       return 0;
     }
@@ -151,11 +140,7 @@ class IndexMultiThreadFixture : public testing::Test
   Delete([[maybe_unused]] const size_t key_id)
   {
     if constexpr (HasDeleteOperation<ImplStat>()) {
-      if constexpr (std::is_same_v<Key, char *>) {
-        return index_->Delete(keys_.at(key_id), kKeyLen);
-      } else {
-        return index_->Delete(keys_.at(key_id));
-      }
+      return index_->Delete(keys_.at(key_id), kKeyLen);
     } else {
       return 0;
     }
@@ -225,7 +210,7 @@ class IndexMultiThreadFixture : public testing::Test
   {
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
-        const auto &read_val = index_->Read(keys_.at(id));
+        const auto &read_val = index_->Read(keys_.at(id), kKeyLen);
         if (expect_success) {
           ASSERT_TRUE(read_val);
           const auto expected_val = payloads_.at((is_update) ? w_id + kThreadNum : w_id);
@@ -248,10 +233,10 @@ class IndexMultiThreadFixture : public testing::Test
     if constexpr (HasScanOperation<ImplStat>()) {
       auto mt_worker = [&](const size_t w_id) -> void {
         size_t begin_id = kExecNum * w_id;
-        const auto &begin_key = std::make_pair(keys_.at(begin_id), kRangeClosed);
+        const auto &begin_key = std::make_tuple(keys_.at(begin_id), kKeyLen, kRangeClosed);
 
         size_t end_id = kExecNum * (w_id + 1);
-        const auto &end_key = std::make_pair(keys_.at(end_id), kRangeOpened);
+        const auto &end_key = std::make_tuple(keys_.at(end_id), kKeyLen, kRangeOpened);
 
         auto &&iter = index_->Scan(begin_key, end_key);
         if (expect_success) {
