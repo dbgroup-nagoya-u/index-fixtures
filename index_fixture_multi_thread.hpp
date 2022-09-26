@@ -101,8 +101,8 @@ class IndexMultiThreadFixture : public testing::Test
 
   auto
   Write(  //
-      const size_t key_id,
-      const size_t pay_id)
+      [[maybe_unused]] const size_t key_id,
+      [[maybe_unused]] const size_t pay_id)
   {
     if constexpr (HasWriteOperation<ImplStat>()) {
       if constexpr (std::is_same_v<Key, char *>) {
@@ -110,13 +110,15 @@ class IndexMultiThreadFixture : public testing::Test
       } else {
         return index_->Write(keys_.at(key_id), payloads_.at(pay_id));
       }
+    } else {
+      return 0;
     }
   }
 
   auto
   Insert(  //
-      const size_t key_id,
-      const size_t pay_id)
+      [[maybe_unused]] const size_t key_id,
+      [[maybe_unused]] const size_t pay_id)
   {
     if constexpr (HasInsertOperation<ImplStat>()) {
       if constexpr (std::is_same_v<Key, char *>) {
@@ -124,13 +126,15 @@ class IndexMultiThreadFixture : public testing::Test
       } else {
         return index_->Insert(keys_.at(key_id), payloads_.at(pay_id));
       }
+    } else {
+      return 0;
     }
   }
 
   auto
   Update(  //
-      const size_t key_id,
-      const size_t pay_id)
+      [[maybe_unused]] const size_t key_id,
+      [[maybe_unused]] const size_t pay_id)
   {
     if constexpr (HasUpdateOperation<ImplStat>()) {
       if constexpr (std::is_same_v<Key, char *>) {
@@ -138,11 +142,13 @@ class IndexMultiThreadFixture : public testing::Test
       } else {
         return index_->Update(keys_.at(key_id), payloads_.at(pay_id));
       }
+    } else {
+      return 0;
     }
   }
 
   auto
-  Delete(const size_t key_id)
+  Delete([[maybe_unused]] const size_t key_id)
   {
     if constexpr (HasDeleteOperation<ImplStat>()) {
       if constexpr (std::is_same_v<Key, char *>) {
@@ -150,6 +156,8 @@ class IndexMultiThreadFixture : public testing::Test
       } else {
         return index_->Delete(keys_.at(key_id));
       }
+    } else {
+      return 0;
     }
   }
 
