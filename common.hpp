@@ -87,17 +87,9 @@ enum WriteOperation {
   kWithoutWrite,
 };
 
-#ifdef INDEX_FIXTURE_EXEC_NUM_PER_THREAD
 constexpr size_t kExecNum = INDEX_FIXTURE_EXEC_NUM_PER_THREAD;
-#else
-constexpr size_t kExecNum = 1E6;
-#endif
 
-#ifdef INDEX_FIXTURE_RANDOM_SEED
 constexpr size_t kRandomSeed = INDEX_FIXTURE_RANDOM_SEED;
-#else
-constexpr size_t kRandomSeed = 0;
-#endif
 
 constexpr size_t kVarDataLength = 18;
 
@@ -116,7 +108,7 @@ constexpr bool kWithWrite = true;
 constexpr bool kWithDelete = true;
 
 /*######################################################################################
- * Global utilities
+ * Global utility classes
  *####################################################################################*/
 
 template <template <class K, class V, class C> class IndexType,
@@ -133,6 +125,10 @@ struct IndexInfo {
 struct VarData {
   char data[kVarDataLength]{};
 };
+
+/*######################################################################################
+ * Global utility functions
+ *####################################################################################*/
 
 /**
  * @tparam Compare a comparator class.
@@ -241,6 +237,10 @@ IsVarLen()  //
     return false;
   }
 }
+
+/*######################################################################################
+ * Template functions for disbling tests of each operation
+ *####################################################################################*/
 
 template <class ImplStat>
 constexpr auto
