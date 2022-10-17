@@ -242,7 +242,7 @@ class IndexFixture : public testing::Test
 
       auto &&iter = index_->Scan(begin_key, end_key);
       if (expect_success) {
-        for (; iter.HasNext(); ++iter, ++begin_pos) {
+        for (; iter; ++iter, ++begin_pos) {
           const auto &[key, payload] = *iter;
           const auto val_id = (write_twice) ? begin_pos + 1 : begin_pos;
           EXPECT_TRUE(IsEqual<KeyComp>(keys_.at(begin_pos), key));
@@ -252,7 +252,7 @@ class IndexFixture : public testing::Test
           EXPECT_EQ(begin_pos, end_pos);
         }
       }
-      EXPECT_FALSE(iter.HasNext());
+      EXPECT_FALSE(iter);
     }
   }
 

@@ -249,7 +249,7 @@ class IndexMultiThreadFixture : public testing::Test
 
         auto &&iter = index_->Scan(begin_key, end_key);
         if (expect_success) {
-          for (; iter.HasNext(); ++iter, ++begin_id) {
+          for (; iter; ++iter, ++begin_id) {
             const auto key_id = begin_id;
             const auto val_id =
                 (is_update) ? key_id % kThreadNum + kThreadNum : key_id % kThreadNum;
@@ -260,7 +260,7 @@ class IndexMultiThreadFixture : public testing::Test
           }
           EXPECT_EQ(begin_id, end_id);
         }
-        EXPECT_FALSE(iter.HasNext());
+        EXPECT_FALSE(iter);
       };
 
       RunMT(mt_worker);
