@@ -99,7 +99,7 @@ constexpr size_t kRandomSeed = INDEX_FIXTURE_RANDOM_SEED;
 constexpr size_t kRandomSeed = 0;
 #endif
 
-constexpr size_t kVarDataLength = 12;
+constexpr size_t kVarDataLength = 18;
 
 constexpr bool kExpectSuccess = true;
 
@@ -153,14 +153,39 @@ IsEqual(  //
 }
 
 template <class T>
-constexpr auto
-GetDataLength()  //
+auto
+GetLength(const T &data)  //
     -> size_t
 {
   if constexpr (std::is_same_v<T, char *>) {
-    return kVarDataLength;
+    return strlen(data) + 1;
   } else {
     return sizeof(T);
+  }
+}
+
+inline void
+CreateDummyString(  //
+    const size_t data_num,
+    const size_t level,
+    std::vector<char *> &data_vec,
+    VarData var_arr[],
+    size_t &i,
+    VarData &base)
+{
+  if (level + 1 > kVarDataLength) return;
+
+  for (size_t j = 0; j < 10 && i < data_num; ++j) {  // NOLINT
+    base.data[level] = '0' + j;                      // NOLINT
+    base.data[level + 1] = '\0';
+
+    auto *data = reinterpret_cast<char *>(&(var_arr[i]));
+    memcpy(data, &base, kVarDataLength);
+    data_vec.emplace_back(data);
+    if (++i >= data_num) return;
+
+    base.data[level + 1] = '0';
+    CreateDummyString(data_num, level + 2, data_vec, var_arr, i, base);
   }
 }
 
@@ -172,27 +197,21 @@ PrepareTestData(const size_t data_num)  //
   std::vector<T> data_vec{};
   data_vec.reserve(data_num);
 
-  // reeserve memory if needed
-  VarData *var_arr{nullptr};
-  uint64_t *ptr_arr{nullptr};
   if constexpr (std::is_same_v<T, char *>) {
-    var_arr = new VarData[data_num];
-  } else if constexpr (std::is_same_v<T, uint64_t *>) {
-    ptr_arr = new uint64_t[data_num];
-  }
+    auto *var_arr = new VarData[data_num];
+    VarData base{};
+    memset(base.data, '0', kVarDataLength);
 
-  for (size_t i = 0; i < data_num; ++i) {
-    if constexpr (std::is_same_v<T, char *>) {
-      // variable-length data
-      auto *data = reinterpret_cast<char *>(&(var_arr[i]));
-      snprintf(data, kVarDataLength, "%011lu", i);  // NOLINT
-      data_vec.emplace_back(data);
-    } else if constexpr (std::is_same_v<T, uint64_t *>) {
-      // pointer data
+    size_t count = 0;
+    CreateDummyString(data_num, 0, data_vec, var_arr, count, base);
+  } else if constexpr (std::is_same_v<T, uint64_t *>) {
+    auto *ptr_arr = new uint64_t[data_num];
+    for (size_t i = 0; i < data_num; ++i) {
       ptr_arr[i] = i;
       data_vec.emplace_back(&(ptr_arr[i]));
-    } else {
-      // static-length data
+    }
+  } else {
+    for (size_t i = 0; i < data_num; ++i) {
       data_vec.emplace_back(i);
     }
   }
@@ -216,15 +235,11 @@ constexpr auto
 IsVarLen()  //
     -> bool
 {
-  return false;
-}
-
-template <>
-constexpr auto
-IsVarLen<char *>()  //
-    -> bool
-{
-  return true;
+  if constexpr (std::is_same_v<T, char *>) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 template <class ImplStat>

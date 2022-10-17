@@ -68,7 +68,6 @@ class IndexMultiThreadFixture : public testing::Test
   static constexpr size_t kThreadNum = 8;
 #endif
 
-  static constexpr size_t kKeyLen = GetDataLength<Key>();
   static constexpr size_t kKeyNum = kExecNum * kThreadNum + 1;
   static constexpr size_t kWaitForThreadCreation = 100;
 
@@ -106,7 +105,9 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const size_t pay_id)
   {
     if constexpr (HasWriteOperation<ImplStat>()) {
-      return index_->Write(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
+      const auto &key = keys_.at(key_id);
+      const auto &payload = payloads_.at(pay_id);
+      return index_->Write(key, payload, GetLength(key));
     } else {
       return 0;
     }
@@ -118,7 +119,9 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const size_t pay_id)
   {
     if constexpr (HasInsertOperation<ImplStat>()) {
-      return index_->Insert(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
+      const auto &key = keys_.at(key_id);
+      const auto &payload = payloads_.at(pay_id);
+      return index_->Insert(key, payload, GetLength(key));
     } else {
       return 0;
     }
@@ -130,7 +133,9 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const size_t pay_id)
   {
     if constexpr (HasUpdateOperation<ImplStat>()) {
-      return index_->Update(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
+      const auto &key = keys_.at(key_id);
+      const auto &payload = payloads_.at(pay_id);
+      return index_->Update(key, payload, GetLength(key));
     } else {
       return 0;
     }
@@ -140,7 +145,8 @@ class IndexMultiThreadFixture : public testing::Test
   Delete([[maybe_unused]] const size_t key_id)
   {
     if constexpr (HasDeleteOperation<ImplStat>()) {
-      return index_->Delete(keys_.at(key_id), kKeyLen);
+      const auto &key = keys_.at(key_id);
+      return index_->Delete(key, GetLength(key));
     } else {
       return 0;
     }
@@ -210,7 +216,8 @@ class IndexMultiThreadFixture : public testing::Test
   {
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
-        const auto &read_val = index_->Read(keys_.at(id), kKeyLen);
+        const auto &key = keys_.at(id);
+        const auto read_val = index_->Read(key, GetLength(key));
         if (expect_success) {
           ASSERT_TRUE(read_val);
           const auto expected_val = payloads_.at((is_update) ? w_id + kThreadNum : w_id);
@@ -233,10 +240,12 @@ class IndexMultiThreadFixture : public testing::Test
     if constexpr (HasScanOperation<ImplStat>()) {
       auto mt_worker = [&](const size_t w_id) -> void {
         size_t begin_id = kExecNum * w_id;
-        const auto &begin_key = std::make_tuple(keys_.at(begin_id), kKeyLen, kRangeClosed);
+        auto &&key = keys_.at(begin_id);
+        const auto &begin_key = std::make_tuple(key, GetLength(key), kRangeClosed);
 
         size_t end_id = kExecNum * (w_id + 1);
-        const auto &end_key = std::make_tuple(keys_.at(end_id), kKeyLen, kRangeOpened);
+        key = keys_.at(end_id);
+        const auto &end_key = std::make_tuple(key, GetLength(key), kRangeOpened);
 
         auto &&iter = index_->Scan(begin_key, end_key);
         if (expect_success) {
@@ -340,7 +349,9 @@ class IndexMultiThreadFixture : public testing::Test
         std::vector<std::tuple<Key, Payload, size_t>> entries{};
         entries.reserve(kOpsNum);
         for (size_t i = 0; i < kOpsNum; ++i) {
-          entries.emplace_back(keys_.at(i), payloads_.at(i % kThreadNum), kKeyLen);
+          const auto &key = keys_.at(i);
+          const auto &payload = payloads_.at(i % kThreadNum);
+          entries.emplace_back(key, payload, GetLength(key));
         }
 
         const auto rc = index_->Bulkload(entries, kThreadNum);

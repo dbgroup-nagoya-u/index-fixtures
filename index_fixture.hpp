@@ -57,7 +57,6 @@ class IndexFixture : public testing::Test
    * Internal constants
    *##################################################################################*/
 
-  static constexpr size_t kKeyLen = GetDataLength<Key>();
   static constexpr size_t kRecNumWithoutSMOs = 30;
   static constexpr size_t kRecNumWithLeafSMOs = 1000;
   static constexpr size_t kRecNumWithInternalSMOs = 30000;
@@ -122,7 +121,9 @@ class IndexFixture : public testing::Test
       [[maybe_unused]] const size_t pay_id)
   {
     if constexpr (HasWriteOperation<ImplStat>()) {
-      return index_->Write(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
+      const auto &key = keys_.at(key_id);
+      const auto &payload = payloads_.at(pay_id);
+      return index_->Write(key, payload, GetLength(key));
     } else {
       return 0;
     }
@@ -134,7 +135,9 @@ class IndexFixture : public testing::Test
       [[maybe_unused]] const size_t pay_id)
   {
     if constexpr (HasInsertOperation<ImplStat>()) {
-      return index_->Insert(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
+      const auto &key = keys_.at(key_id);
+      const auto &payload = payloads_.at(pay_id);
+      return index_->Insert(key, payload, GetLength(key));
     } else {
       return 0;
     }
@@ -146,7 +149,9 @@ class IndexFixture : public testing::Test
       [[maybe_unused]] const size_t pay_id)
   {
     if constexpr (HasUpdateOperation<ImplStat>()) {
-      return index_->Update(keys_.at(key_id), payloads_.at(pay_id), kKeyLen);
+      const auto &key = keys_.at(key_id);
+      const auto &payload = payloads_.at(pay_id);
+      return index_->Update(key, payload, GetLength(key));
     } else {
       return 0;
     }
@@ -156,7 +161,8 @@ class IndexFixture : public testing::Test
   Delete([[maybe_unused]] const size_t key_id)
   {
     if constexpr (HasDeleteOperation<ImplStat>()) {
-      return index_->Delete(keys_.at(key_id), kKeyLen);
+      const auto &key = keys_.at(key_id);
+      return index_->Delete(key, GetLength(key));
     } else {
       return 0;
     }
@@ -194,7 +200,8 @@ class IndexFixture : public testing::Test
       const auto key_id = target_ids.at(i);
       const auto pay_id = (write_twice) ? key_id + 1 : key_id;
 
-      const auto read_val = index_->Read(keys_.at(key_id), kKeyLen);
+      const auto &key = keys_.at(key_id);
+      const auto read_val = index_->Read(key, GetLength(key));
       if (expect_success) {
         EXPECT_TRUE(read_val);
 
@@ -219,7 +226,8 @@ class IndexFixture : public testing::Test
       size_t begin_pos = 0;
       if (begin_ref) {
         auto &&[begin_id, begin_closed] = *begin_ref;
-        begin_key.emplace(keys_.at(begin_id), kKeyLen, begin_closed);
+        const auto &key = keys_.at(begin_id);
+        begin_key.emplace(key, GetLength(key), begin_closed);
         begin_pos = (begin_closed) ? begin_id : begin_id + 1;
       }
 
@@ -227,7 +235,8 @@ class IndexFixture : public testing::Test
       size_t end_pos = 0;
       if (end_ref) {
         auto &&[end_id, end_closed] = *end_ref;
-        end_key.emplace(keys_.at(end_id), kKeyLen, end_closed);
+        const auto &key = keys_.at(end_id);
+        end_key.emplace(key, GetLength(key), end_closed);
         end_pos = (end_closed) ? end_id + 1 : end_id;
       }
 
@@ -323,7 +332,9 @@ class IndexFixture : public testing::Test
         std::vector<std::tuple<Key, Payload, size_t>> entries{};
         entries.reserve(kExecNum);
         for (size_t i = 0; i < kExecNum; ++i) {
-          entries.emplace_back(keys_.at(i), payloads_.at(i), kKeyLen);
+          const auto &key = keys_.at(i);
+          const auto &payload = payloads_.at(i);
+          entries.emplace_back(key, payload, GetLength(key));
         }
 
         const auto rc = index_->Bulkload(entries, 1);
