@@ -294,6 +294,11 @@ struct UInt4 {
   using Comp = std::less<uint32_t>;
 };
 
+struct Int4 {
+  using Data = int32_t;
+  using Comp = std::less<int32_t>;
+};
+
 struct Ptr {
   using Data = uint64_t *;
 
