@@ -240,12 +240,12 @@ class IndexMultiThreadFixture : public testing::Test
     if constexpr (HasScanOperation<ImplStat>()) {
       auto mt_worker = [&](const size_t w_id) -> void {
         size_t begin_id = kExecNum * w_id;
-        auto &&key = keys_.at(begin_id);
-        const auto &begin_key = std::make_tuple(key, GetLength(key), kRangeClosed);
+        const auto &begin_k = keys_.at(begin_id);
+        const auto &begin_key = std::make_tuple(begin_k, GetLength(begin_k), kRangeClosed);
 
         size_t end_id = kExecNum * (w_id + 1);
-        key = keys_.at(end_id);
-        const auto &end_key = std::make_tuple(key, GetLength(key), kRangeOpened);
+        const auto &end_k = keys_.at(end_id);
+        const auto &end_key = std::make_tuple(end_k, GetLength(end_k), kRangeOpened);
 
         auto &&iter = index_->Scan(begin_key, end_key);
         if (expect_success) {
