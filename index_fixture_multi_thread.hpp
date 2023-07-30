@@ -114,7 +114,7 @@ class IndexMultiThreadFixture : public testing::Test
     if constexpr (HasWriteOperation<ImplStat>()) {
       const auto &key = keys_.at(key_id);
       const auto &payload = payloads_.at(pay_id);
-      return index_->Write(key, payload, GetLength(key));
+      return index_->Write(key, payload, GetLength(key), GetLength(payload));
     } else {
       return 0;
     }
@@ -128,7 +128,7 @@ class IndexMultiThreadFixture : public testing::Test
     if constexpr (HasInsertOperation<ImplStat>()) {
       const auto &key = keys_.at(key_id);
       const auto &payload = payloads_.at(pay_id);
-      return index_->Insert(key, payload, GetLength(key));
+      return index_->Insert(key, payload, GetLength(key), GetLength(payload));
     } else {
       return 0;
     }
@@ -142,7 +142,7 @@ class IndexMultiThreadFixture : public testing::Test
     if constexpr (HasUpdateOperation<ImplStat>()) {
       const auto &key = keys_.at(key_id);
       const auto &payload = payloads_.at(pay_id);
-      return index_->Update(key, payload, GetLength(key));
+      return index_->Update(key, payload, GetLength(key), GetLength(payload));
     } else {
       return 0;
     }
