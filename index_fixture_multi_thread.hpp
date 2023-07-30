@@ -78,26 +78,33 @@ class IndexMultiThreadFixture : public testing::Test
   void
   SetUp() override
   {
-    keys_ = PrepareTestData<Key>(kKeyNum);
-    payloads_ = PrepareTestData<Payload>(kThreadNum * 2);
-
     index_ = std::make_unique<Index_t>();
-
     is_ready_ = false;
   }
 
   void
   TearDown() override
   {
-    ReleaseTestData(keys_);
-    ReleaseTestData(payloads_);
-
     index_ = nullptr;
   }
 
   /*####################################################################################
    * Utility functions
    *##################################################################################*/
+
+  void
+  PrepareData()
+  {
+    keys_ = PrepareTestData<Key>(kKeyNum);
+    payloads_ = PrepareTestData<Payload>(kThreadNum * 2);
+  }
+
+  void
+  DestroyData()
+  {
+    ReleaseTestData(keys_);
+    ReleaseTestData(payloads_);
+  }
 
   auto
   Write(  //
@@ -234,8 +241,8 @@ class IndexMultiThreadFixture : public testing::Test
 
   void
   VerifyScan(  //
-      const bool expect_success,
-      const bool is_update)
+      [[maybe_unused]] const bool expect_success,
+      [[maybe_unused]] const bool is_update)
   {
     if constexpr (HasScanOperation<ImplStat>()) {
       auto mt_worker = [&](const size_t w_id) -> void {
@@ -369,6 +376,10 @@ class IndexMultiThreadFixture : public testing::Test
     }
   }
 
+  /*####################################################################################
+   * Functions for test definitions
+   *##################################################################################*/
+
   void
   VerifyWritesWith(  //
       const bool write_twice,
@@ -381,11 +392,16 @@ class IndexMultiThreadFixture : public testing::Test
       GTEST_SKIP();
     }
 
+    PrepareData();
+
     VerifyWrite(!kWriteTwice, pattern);
     if (with_delete) VerifyDelete(kExpectSuccess, pattern);
     if (write_twice) VerifyWrite(kWriteTwice, pattern);
     VerifyRead(kExpectSuccess, write_twice, pattern);
     VerifyScan(kExpectSuccess, write_twice);
+
+    ReleaseTestData(keys_);
+    ReleaseTestData(payloads_);
   }
 
   void
@@ -400,6 +416,8 @@ class IndexMultiThreadFixture : public testing::Test
       GTEST_SKIP();
     }
 
+    PrepareData();
+
     const auto expect_success = !with_delete || write_twice;
     const auto is_updated = with_delete && write_twice;
 
@@ -408,6 +426,8 @@ class IndexMultiThreadFixture : public testing::Test
     if (write_twice) VerifyInsert(with_delete, write_twice, pattern);
     VerifyRead(expect_success, is_updated, pattern);
     VerifyScan(expect_success, is_updated);
+
+    DestroyData();
   }
 
   void
@@ -423,6 +443,8 @@ class IndexMultiThreadFixture : public testing::Test
       GTEST_SKIP();
     }
 
+    PrepareData();
+
     const auto expect_success = with_write && !with_delete;
 
     if (with_write) VerifyWrite(!kWriteTwice, pattern);
@@ -430,6 +452,8 @@ class IndexMultiThreadFixture : public testing::Test
     VerifyUpdate(expect_success, pattern);
     VerifyRead(expect_success, kWriteTwice, pattern);
     VerifyScan(expect_success, kWriteTwice);
+
+    DestroyData();
   }
 
   void
@@ -444,6 +468,8 @@ class IndexMultiThreadFixture : public testing::Test
       GTEST_SKIP();
     }
 
+    PrepareData();
+
     const auto expect_success = with_write && !with_delete;
 
     if (with_write) VerifyWrite(!kWriteTwice, pattern);
@@ -451,18 +477,22 @@ class IndexMultiThreadFixture : public testing::Test
     VerifyDelete(expect_success, pattern);
     VerifyRead(kExpectFailed, !kWriteTwice, pattern);
     VerifyScan(kExpectFailed, !kWriteTwice);
+
+    DestroyData();
   }
 
   void
   VerifyConcurrentSMOs()
   {
+    constexpr size_t kRepeatNum = 5;
+
     if (!HasWriteOperation<ImplStat>()       //
         || !HasDeleteOperation<ImplStat>())  //
     {
       GTEST_SKIP();
     }
 
-    constexpr size_t kRepeatNum = 5;
+    PrepareData();
 
     auto init_worker = [&](const size_t w_id) -> void {
       if (w_id % 2 == 0) {
@@ -501,6 +531,8 @@ class IndexMultiThreadFixture : public testing::Test
       RunMT(even_delete_worker);
       RunMT(odd_delete_worker);
     }
+
+    DestroyData();
   }
 
   void
@@ -516,6 +548,8 @@ class IndexMultiThreadFixture : public testing::Test
     {
       GTEST_SKIP();
     }
+
+    PrepareData();
 
     auto expect_success = true;
     auto is_updated = false;
@@ -543,6 +577,8 @@ class IndexMultiThreadFixture : public testing::Test
     }
     VerifyRead(expect_success, is_updated, pattern);
     VerifyScan(expect_success, is_updated);
+
+    DestroyData();
   }
 
   /*####################################################################################

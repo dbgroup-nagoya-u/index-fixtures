@@ -97,6 +97,8 @@ constexpr bool kExpectSuccess = true;
 
 constexpr bool kExpectFailed = false;
 
+constexpr bool kHasRange = true;
+
 constexpr bool kRangeClosed = true;
 
 constexpr bool kRangeOpened = false;

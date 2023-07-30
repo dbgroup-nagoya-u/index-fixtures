@@ -51,6 +51,7 @@ class IndexFixture : public testing::Test
   using Index_t = typename IndexInfo::Index_t;
   using ImplStat = typename IndexInfo::ImplStatus;
   using ScanKey = std::optional<std::tuple<const Key &, size_t, bool>>;
+  using ScanKeyRef = std::optional<std::pair<size_t, bool>>;
 
  protected:
   /*####################################################################################
@@ -69,24 +70,32 @@ class IndexFixture : public testing::Test
   void
   SetUp() override
   {
-    keys_ = PrepareTestData<Key>(kKeyNum);
-    payloads_ = PrepareTestData<Payload>(kKeyNum);
-
     index_ = std::make_unique<Index_t>();
   }
 
   void
   TearDown() override
   {
-    ReleaseTestData(keys_);
-    ReleaseTestData(payloads_);
-
     index_ = nullptr;
   }
 
   /*####################################################################################
    * Utility functions
    *##################################################################################*/
+
+  void
+  PrepareData()
+  {
+    keys_ = PrepareTestData<Key>(kKeyNum);
+    payloads_ = PrepareTestData<Payload>(kKeyNum);
+  }
+
+  void
+  DestroyData()
+  {
+    ReleaseTestData(keys_);
+    ReleaseTestData(payloads_);
+  }
 
   [[nodiscard]] auto
   CreateTargetIDs(  //
@@ -171,12 +180,6 @@ class IndexFixture : public testing::Test
   void
   FillIndex()
   {
-    if (!HasScanOperation<ImplStat>()                                            //
-        || (!HasWriteOperation<ImplStat>() && !HasInsertOperation<ImplStat>()))  //
-    {
-      GTEST_SKIP();
-    }
-
     for (size_t i = 0; i < kExecNum; ++i) {
       if constexpr (HasWriteOperation<ImplStat>()) {
         Write(i, i);
@@ -216,9 +219,9 @@ class IndexFixture : public testing::Test
 
   void
   VerifyScan(  //
-      const std::optional<std::pair<size_t, bool>> begin_ref,
-      const std::optional<std::pair<size_t, bool>> end_ref,
-      const bool expect_success = true,
+      [[maybe_unused]] const ScanKeyRef &begin_ref,
+      [[maybe_unused]] const ScanKeyRef &end_ref,
+      [[maybe_unused]] const bool expect_success = true,
       [[maybe_unused]] const bool write_twice = false)
   {
     if constexpr (HasScanOperation<ImplStat>()) {
@@ -352,6 +355,46 @@ class IndexFixture : public testing::Test
     }
   }
 
+  /*####################################################################################
+   * Functions for test definitions
+   *##################################################################################*/
+
+  void
+  VerifyReadEmptyIndex()
+  {
+    PrepareData();
+    VerifyRead({0}, kExpectFailed);
+    DestroyData();
+  }
+
+  void
+  VerifyScanWith(  //
+      const bool has_range,
+      const bool closed = true)
+  {
+    constexpr auto kRecNum = kRecNumWithInternalSMOs;
+
+    if (!HasScanOperation<ImplStat>()                                            //
+        || (!HasWriteOperation<ImplStat>() && !HasInsertOperation<ImplStat>()))  //
+    {
+      GTEST_SKIP();
+    }
+
+    PrepareData();
+
+    ScanKeyRef begin_key = std::nullopt;
+    ScanKeyRef end_key = std::nullopt;
+    if (has_range) {
+      begin_key = std::make_pair(0, closed);
+      end_key = std::make_pair(kRecNum - 1, closed);
+    }
+
+    FillIndex();
+    VerifyScan(begin_key, end_key);
+
+    DestroyData();
+  }
+
   void
   VerifyWritesWith(  //
       const bool write_twice,
@@ -365,6 +408,8 @@ class IndexFixture : public testing::Test
       GTEST_SKIP();
     }
 
+    PrepareData();
+
     const auto &target_ids = CreateTargetIDs(ops_num, pattern);
     const auto &begin_ref = std::make_pair(0, kRangeClosed);
     const auto &end_ref = std::make_pair(ops_num, kRangeOpened);
@@ -374,6 +419,8 @@ class IndexFixture : public testing::Test
     if (write_twice) VerifyWrite(target_ids, kWriteTwice);
     VerifyRead(target_ids, !with_delete || write_twice, write_twice);
     VerifyScan(begin_ref, end_ref, kExpectSuccess, write_twice);
+
+    DestroyData();
   }
 
   void
@@ -388,6 +435,8 @@ class IndexFixture : public testing::Test
       GTEST_SKIP();
     }
 
+    PrepareData();
+
     const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
     const auto &begin_ref = std::make_pair(0, kRangeClosed);
     const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
@@ -399,6 +448,8 @@ class IndexFixture : public testing::Test
     if (write_twice) VerifyInsert(target_ids, with_delete, kWriteTwice);
     VerifyRead(target_ids, expect_success, is_updated);
     VerifyScan(begin_ref, end_ref, expect_success, is_updated);
+
+    DestroyData();
   }
 
   void
@@ -414,6 +465,8 @@ class IndexFixture : public testing::Test
       GTEST_SKIP();
     }
 
+    PrepareData();
+
     const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
     const auto &begin_ref = std::make_pair(0, kRangeClosed);
     const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
@@ -424,6 +477,8 @@ class IndexFixture : public testing::Test
     VerifyUpdate(target_ids, expect_update);
     VerifyRead(target_ids, expect_update, kWriteTwice);
     VerifyScan(begin_ref, end_ref, expect_update, kWriteTwice);
+
+    DestroyData();
   }
 
   void
@@ -438,6 +493,8 @@ class IndexFixture : public testing::Test
       GTEST_SKIP();
     }
 
+    PrepareData();
+
     const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
     const auto &begin_ref = std::make_pair(0, kRangeClosed);
     const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
@@ -448,6 +505,8 @@ class IndexFixture : public testing::Test
     VerifyDelete(target_ids, expect_delete);
     VerifyRead(target_ids, kExpectFailed);
     VerifyScan(begin_ref, end_ref, kExpectFailed);
+
+    DestroyData();
   }
 
   void
@@ -463,6 +522,8 @@ class IndexFixture : public testing::Test
     {
       GTEST_SKIP();
     }
+
+    PrepareData();
 
     const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
     const auto &begin_ref = std::make_pair(0, kRangeClosed);
@@ -493,6 +554,8 @@ class IndexFixture : public testing::Test
     }
     VerifyRead(target_ids, expect_success, is_updated);
     VerifyScan(begin_ref, end_ref, expect_success, is_updated);
+
+    DestroyData();
   }
 
   /*####################################################################################

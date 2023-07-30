@@ -26,7 +26,7 @@ TYPED_TEST(IndexFixture, ConstructWithInternalSMOs)
 
 TYPED_TEST(IndexFixture, ReadWithEmptyIndexFail)
 {  //
-  TestFixture::VerifyRead({0}, kExpectFailed);
+  TestFixture::VerifyReadEmptyIndex();
 }
 
 /*--------------------------------------------------------------------------------------
@@ -35,26 +35,17 @@ TYPED_TEST(IndexFixture, ReadWithEmptyIndexFail)
 
 TYPED_TEST(IndexFixture, ScanWithoutKeysPerformFullScan)
 {
-  TestFixture::FillIndex();
-  TestFixture::VerifyScan(std::nullopt, std::nullopt);
+  TestFixture::VerifyScanWith(!kHasRange);
 }
 
 TYPED_TEST(IndexFixture, ScanWithClosedRangeIncludeLeftRightEnd)
 {
-  constexpr auto kRecNum = TestFixture::kRecNumWithInternalSMOs;
-
-  TestFixture::FillIndex();
-  TestFixture::VerifyScan(std::make_pair(0, kRangeClosed),
-                          std::make_pair(kRecNum - 1, kRangeClosed));
+  TestFixture::VerifyScanWith(kHasRange, kRangeClosed);
 }
 
 TYPED_TEST(IndexFixture, ScanWithOpenedRangeExcludeLeftRightEnd)
 {
-  constexpr auto kRecNum = TestFixture::kRecNumWithInternalSMOs;
-
-  TestFixture::FillIndex();
-  TestFixture::VerifyScan(std::make_pair(0, kRangeOpened),
-                          std::make_pair(kRecNum - 1, kRangeOpened));
+  TestFixture::VerifyScanWith(kHasRange, kRangeOpened);
 }
 
 /*--------------------------------------------------------------------------------------
