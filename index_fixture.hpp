@@ -331,13 +331,13 @@ class IndexFixture : public testing::Test
   VerifyBulkload()
   {
     if constexpr (HasBulkloadOperation<ImplStat>()) {
-      if constexpr (IsVarLen<Key>()) {
-        std::vector<std::tuple<Key, Payload, size_t>> entries{};
+      if constexpr (IsVarLen<Key>() || IsVarLen<Payload>()) {
+        std::vector<std::tuple<Key, Payload, size_t, size_t>> entries{};
         entries.reserve(kExecNum);
         for (size_t i = 0; i < kExecNum; ++i) {
           const auto &key = keys_.at(i);
           const auto &payload = payloads_.at(i);
-          entries.emplace_back(key, payload, GetLength(key));
+          entries.emplace_back(key, payload, GetLength(key), GetLength(payload));
         }
 
         const auto rc = index_->Bulkload(entries, 1);

@@ -352,13 +352,13 @@ class IndexMultiThreadFixture : public testing::Test
   {
     if constexpr (HasBulkloadOperation<ImplStat>()) {
       constexpr size_t kOpsNum = kExecNum * kThreadNum;
-      if constexpr (IsVarLen<Key>()) {
-        std::vector<std::tuple<Key, Payload, size_t>> entries{};
+      if constexpr (IsVarLen<Key>() || IsVarLen<Payload>()) {
+        std::vector<std::tuple<Key, Payload, size_t, size_t>> entries{};
         entries.reserve(kOpsNum);
         for (size_t i = 0; i < kOpsNum; ++i) {
           const auto &key = keys_.at(i);
           const auto &payload = payloads_.at(i % kThreadNum);
-          entries.emplace_back(key, payload, GetLength(key));
+          entries.emplace_back(key, payload, GetLength(key), GetLength(payload));
         }
 
         const auto rc = index_->Bulkload(entries, kThreadNum);
