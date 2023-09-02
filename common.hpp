@@ -17,6 +17,7 @@
 #ifndef INDEX_FIXTURES_COMMON_HPP
 #define INDEX_FIXTURES_COMMON_HPP
 
+// C++ standard libraries
 #include <cassert>
 #include <cstddef>
 #include <cstdint>

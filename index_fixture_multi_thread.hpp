@@ -17,6 +17,7 @@
 #ifndef INDEX_FIXTURES_INDEX_FIXTURE_MULTI_THREAD_HPP
 #define INDEX_FIXTURES_INDEX_FIXTURE_MULTI_THREAD_HPP
 
+// C++ standard libraries
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
@@ -25,14 +26,15 @@
 #include <mutex>
 #include <random>
 #include <shared_mutex>
+#include <thread>
 #include <tuple>
 #include <utility>
 #include <vector>
 
-// external libraries
+// external sources
 #include "gtest/gtest.h"
 
-// project libraries
+// local sources
 #include "common.hpp"
 
 namespace dbgroup::index::test

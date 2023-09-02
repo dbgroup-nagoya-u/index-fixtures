@@ -17,6 +17,7 @@
 #ifndef INDEX_FIXTURES_INDEX_FIXTURE_HPP
 #define INDEX_FIXTURES_INDEX_FIXTURE_HPP
 
+// C++ standard libraries
 #include <algorithm>
 #include <memory>
 #include <random>
@@ -24,10 +25,10 @@
 #include <utility>
 #include <vector>
 
-// external libraries
+// external sources
 #include "gtest/gtest.h"
 
-// project libraries
+// local sources
 #include "common.hpp"
 
 namespace dbgroup::index::test
