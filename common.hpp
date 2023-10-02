@@ -88,9 +88,9 @@ enum WriteOperation {
   kWithoutWrite,
 };
 
-constexpr size_t kExecNum = INDEX_FIXTURE_EXEC_NUM_PER_THREAD;
+constexpr size_t kExecNum = DBGROUP_TEST_EXEC_NUM;
 
-constexpr size_t kRandomSeed = INDEX_FIXTURE_RANDOM_SEED;
+constexpr size_t kRandomSeed = DBGROUP_TEST_RANDOM_SEED;
 
 constexpr size_t kVarDataLength = 18;
 

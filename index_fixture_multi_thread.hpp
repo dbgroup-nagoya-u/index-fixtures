@@ -64,12 +64,7 @@ class IndexMultiThreadFixture : public testing::Test
    * Internal constants
    *##################################################################################*/
 
-#ifdef INDEX_FIXTURE_THREAD_NUM
-  static constexpr size_t kThreadNum = INDEX_FIXTURE_THREAD_NUM;
-#else
-  static constexpr size_t kThreadNum = 8;
-#endif
-
+  static constexpr size_t kThreadNum = DBGROUP_TEST_THREAD_NUM;
   static constexpr size_t kKeyNum = (kExecNum + 2) * kThreadNum;
   static constexpr size_t kWaitForThreadCreation = 100;
 
