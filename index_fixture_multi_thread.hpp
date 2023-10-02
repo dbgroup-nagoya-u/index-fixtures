@@ -266,7 +266,7 @@ class IndexMultiThreadFixture : public testing::Test
   {
     if constexpr (HasScanOperation<ImplStat>()) {
       auto mt_worker = [&](const size_t w_id) -> void {
-        size_t begin_id = kExecNum * w_id;
+        size_t begin_id = kThreadNum + kExecNum * w_id;
         const auto &begin_k = keys_.at(begin_id);
         const auto &begin_key = std::make_tuple(begin_k, GetLength(begin_k), kRangeClosed);
 
@@ -371,11 +371,11 @@ class IndexMultiThreadFixture : public testing::Test
   VerifyBulkload()
   {
     if constexpr (HasBulkloadOperation<ImplStat>()) {
-      constexpr size_t kOpsNum = kExecNum * kThreadNum;
+      constexpr size_t kOpsNum = (kExecNum + 1) * kThreadNum;
       if constexpr (IsVarLen<Key>() || IsVarLen<Payload>()) {
         std::vector<std::tuple<Key, Payload, size_t, size_t>> entries{};
         entries.reserve(kOpsNum);
-        for (size_t i = 0; i < kOpsNum; ++i) {
+        for (size_t i = kThreadNum; i < kOpsNum; ++i) {
           const auto &key = keys_.at(i);
           const auto &payload = payloads_.at(i % kThreadNum);
           entries.emplace_back(key, payload, GetLength(key), GetLength(payload));
@@ -386,7 +386,7 @@ class IndexMultiThreadFixture : public testing::Test
       } else {
         std::vector<std::pair<Key, Payload>> entries{};
         entries.reserve(kOpsNum);
-        for (size_t i = 0; i < kOpsNum; ++i) {
+        for (size_t i = kThreadNum; i < kOpsNum; ++i) {
           entries.emplace_back(keys_.at(i), payloads_.at(i % kThreadNum));
         }
 
