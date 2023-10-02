@@ -70,7 +70,7 @@ class IndexMultiThreadFixture : public testing::Test
   static constexpr size_t kThreadNum = 8;
 #endif
 
-  static constexpr size_t kKeyNum = kExecNum * kThreadNum + 1;
+  static constexpr size_t kKeyNum = (kExecNum + 2) * kThreadNum;
   static constexpr size_t kWaitForThreadCreation = 100;
 
   /*####################################################################################
@@ -173,11 +173,11 @@ class IndexMultiThreadFixture : public testing::Test
 
       target_ids.reserve(kExecNum);
       if (pattern == kReverse) {
-        for (int64_t i = kExecNum - 1; i >= 0; --i) {
+        for (size_t i = kExecNum; i > 0; --i) {
           target_ids.emplace_back(kThreadNum * i + w_id);
         }
       } else {
-        for (size_t i = 0; i < kExecNum; ++i) {
+        for (size_t i = 1; i <= kExecNum; ++i) {
           target_ids.emplace_back(kThreadNum * i + w_id);
         }
       }
@@ -185,6 +185,29 @@ class IndexMultiThreadFixture : public testing::Test
       if (pattern == kRandom) {
         std::mt19937_64 rand_engine{kRandomSeed};
         std::shuffle(target_ids.begin(), target_ids.end(), rand_engine);
+      }
+    }
+
+    std::unique_lock lock{x_mtx_};
+    cond_.wait(lock, [this] { return is_ready_; });
+
+    return target_ids;
+  }
+
+  [[nodiscard]] auto
+  CreateTargetIDsForConcurrentSMOs()  //
+      -> std::vector<size_t>
+  {
+    std::mt19937_64 rng{kRandomSeed};
+    std::uniform_int_distribution<size_t> exec_dist{1, kExecNum};
+    std::uniform_int_distribution<size_t> thread_dist{0, kThreadNum / 2 - 1};
+    std::vector<size_t> target_ids{};
+    {
+      std::shared_lock guard{s_mtx_};
+
+      target_ids.reserve(kExecNum);
+      for (size_t i = 0; i < kExecNum; ++i) {
+        target_ids.emplace_back(kThreadNum * exec_dist(rng) + thread_dist(rng));
       }
     }
 
@@ -226,7 +249,7 @@ class IndexMultiThreadFixture : public testing::Test
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
         const auto &key = keys_.at(id);
-        const auto read_val = index_->Read(key, GetLength(key));
+        const auto &read_val = index_->Read(key, GetLength(key));
         if (expect_success) {
           ASSERT_TRUE(read_val);
           const auto expected_val = payloads_.at((is_update) ? w_id + kThreadNum : w_id);
@@ -487,53 +510,106 @@ class IndexMultiThreadFixture : public testing::Test
   VerifyConcurrentSMOs()
   {
     constexpr size_t kRepeatNum = 5;
+    constexpr size_t kReadThread = kThreadNum / 2;
+    constexpr size_t kScanThread = kThreadNum * 3 / 4;
+    std::atomic_size_t counter{};
 
-    if (!HasWriteOperation<ImplStat>()       //
-        || !HasDeleteOperation<ImplStat>())  //
+    if (!HasWriteOperation<ImplStat>()      //
+        || !HasDeleteOperation<ImplStat>()  //
+        || !HasScanOperation<ImplStat>()    //
+        || (kThreadNum % 4) != 0)           //
     {
       GTEST_SKIP();
     }
 
-    PrepareData();
+    auto read_proc = [&]() -> void {
+      for (const auto id : CreateTargetIDsForConcurrentSMOs()) {
+        const auto &key = keys_.at(id);
+        const auto &read_val = index_->Read(key, GetLength(key));
+        if (read_val) {
+          EXPECT_TRUE(IsEqual<PayComp>(payloads_.at(id % kReadThread), read_val.value()));
+        }
+      }
+    };
+
+    auto scan_proc = [&]() -> void {
+      Key prev_key{};
+      if constexpr (IsVarLen<Key>()) {
+        prev_key = reinterpret_cast<Key>(::operator new(kVarDataLength));
+      }
+      while (counter < kReadThread) {
+        if constexpr (IsVarLen<Key>()) {
+          memcpy(prev_key, keys_.at(0), GetLength<Key>(keys_.at(0)));
+        } else {
+          prev_key = keys_.at(0);
+        }
+        for (auto &&iter = index_->Scan(); iter; ++iter) {
+          const auto &[key, payload] = *iter;
+          EXPECT_TRUE(KeyComp{}(prev_key, key));
+          if constexpr (IsVarLen<Key>()) {
+            memcpy(prev_key, key, GetLength<Key>(key));
+          } else {
+            prev_key = key;
+          }
+        }
+      }
+      if constexpr (IsVarLen<Key>()) {
+        ::operator delete(prev_key);
+      }
+    };
+
+    auto write_proc = [&](const size_t w_id) -> void {
+      for (const auto id : CreateTargetIDs(w_id, kRandom)) {
+        EXPECT_EQ(Write(id, w_id), 0);
+      }
+      counter += 1;
+    };
+
+    auto delete_proc = [&](const size_t w_id) -> void {
+      for (const auto id : CreateTargetIDs(w_id, kRandom)) {
+        EXPECT_EQ(Delete(id), 0);
+      }
+      counter += 1;
+    };
 
     auto init_worker = [&](const size_t w_id) -> void {
-      if (w_id % 2 == 0) {
-        for (const auto id : CreateTargetIDs(w_id, kRandom)) {
-          EXPECT_EQ(Write(id, w_id), 0);
-        }
+      if (w_id < kReadThread && (w_id % 2) == 0) {
+        write_proc(w_id);
       }
     };
 
     auto even_delete_worker = [&](const size_t w_id) -> void {
-      if (w_id % 2 == 0) {
-        for (const auto id : CreateTargetIDs(w_id, kRandom)) {
-          EXPECT_EQ(Delete(id), 0);
-        }
+      if (w_id >= kScanThread) {
+        scan_proc();
+      } else if (w_id >= kReadThread) {
+        read_proc();
+      } else if (w_id % 2 == 0) {
+        delete_proc(w_id);
       } else {
-        for (const auto id : CreateTargetIDs(w_id, kRandom)) {
-          EXPECT_EQ(Write(id, w_id), 0);
-        }
+        write_proc(w_id);
       }
     };
 
     auto odd_delete_worker = [&](const size_t w_id) -> void {
-      if (w_id % 2 == 0) {
-        for (const auto id : CreateTargetIDs(w_id, kRandom)) {
-          EXPECT_EQ(Write(id, w_id), 0);
-        }
+      if (w_id >= kScanThread) {
+        scan_proc();
+      } else if (w_id >= kReadThread) {
+        read_proc();
+      } else if (w_id % 2 == 0) {
+        write_proc(w_id);
       } else {
-        for (const auto id : CreateTargetIDs(w_id, kRandom)) {
-          EXPECT_EQ(Delete(id), 0);
-        }
+        delete_proc(w_id);
       }
     };
 
+    PrepareData();
     RunMT(init_worker);
     for (size_t i = 0; i < kRepeatNum; ++i) {
+      counter = 0;
       RunMT(even_delete_worker);
+      counter = 0;
       RunMT(odd_delete_worker);
     }
-
     DestroyData();
   }
 

@@ -198,7 +198,7 @@ TYPED_TEST(IndexMultiThreadFixture, RandomDeleteWithDeletedKeysFail)
  * Concurrent Split/Merge
  *------------------------------------------------------------------------------------*/
 
-TYPED_TEST(IndexMultiThreadFixture, ConcurrentSplitAndMergeSucceed)
+TYPED_TEST(IndexMultiThreadFixture, ConcurrentMixedOperationsSucceed)
 {
   TestFixture::VerifyConcurrentSMOs();
 }
