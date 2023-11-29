@@ -59,6 +59,8 @@ class IndexMultiThreadFixture : public testing::Test
   using ImplStat = typename IndexInfo::ImplStatus;
   using ScanKey = std::optional<std::tuple<const Key &, size_t, bool>>;
 
+  using EpochManager = ::dbgroup::memory::EpochManager;
+
  protected:
   /*####################################################################################
    * Internal constants
@@ -75,7 +77,12 @@ class IndexMultiThreadFixture : public testing::Test
   void
   SetUp() override
   {
-    index_ = std::make_unique<Index_t>();
+    keys_ = PrepareTestData<Key>(kKeyNum);
+    payloads_ = PrepareTestData<Payload>(kKeyNum);
+
+    auto epoch_manager = std::make_shared<EpochManager>();
+    epoch_manager_ = epoch_manager;
+    index_ = std::make_unique<Index_t>(epoch_manager);
     is_ready_ = false;
   }
 
@@ -678,6 +685,9 @@ class IndexMultiThreadFixture : public testing::Test
 
   /// a condition variable for notifying worker threads.
   std::condition_variable cond_{};
+
+  // an epoch manager for multi-version
+  std::shared_ptr<EpochManager> epoch_manager_{nullptr};
 };
 
 }  // namespace dbgroup::index::test

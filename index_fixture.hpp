@@ -54,6 +54,8 @@ class IndexFixture : public testing::Test
   using ScanKey = std::optional<std::tuple<const Key &, size_t, bool>>;
   using ScanKeyRef = std::optional<std::pair<size_t, bool>>;
 
+  using EpochManager = ::dbgroup::memory::EpochManager;
+
  protected:
   /*####################################################################################
    * Internal constants
@@ -71,7 +73,12 @@ class IndexFixture : public testing::Test
   void
   SetUp() override
   {
-    index_ = std::make_unique<Index_t>();
+    keys_ = PrepareTestData<Key>(kKeyNum);
+    payloads_ = PrepareTestData<Payload>(kKeyNum);
+
+    auto epoch_manager = std::make_shared<EpochManager>();
+    epoch_manager_ = epoch_manager;
+    index_ = std::make_unique<Index_t>(epoch_manager);
   }
 
   void
@@ -193,6 +200,32 @@ class IndexFixture : public testing::Test
   /*####################################################################################
    * Functions for verification
    *##################################################################################*/
+  void VerifySnapshotRead(  //
+
+  )
+  {
+    const auto &target_ids = CreateTargetIDs(kExecNum, kSequential);
+
+    auto &&guard = epoch_manager_->CreateEpochGuard();
+    const auto current_ts = epoch_manager_->GetCurrentEpoch();
+    epoch_manager_->ForwardGlobalEpoch();
+
+    VerifyWrite(target_ids, kWriteTwice);
+
+    for (size_t i = 0; i < target_ids.size(); ++i) {
+      const auto key_id = target_ids.at(i);
+      const auto pay_id = key_id;  // i.e., key_id, the value which is before updated
+
+      const auto &key = keys_.at(key_id);
+      const auto read_val = index_->SnapshotRead(key, current_ts, guard, GetLength(key));
+
+      EXPECT_TRUE(read_val);
+
+      const auto expected_val = payloads_.at(pay_id);
+      const auto actual_val = read_val.value();
+      EXPECT_TRUE(IsEqual<PayComp>(expected_val, actual_val));
+    }
+  }
 
   void
   VerifyRead(  //
@@ -571,6 +604,9 @@ class IndexFixture : public testing::Test
 
   /// an index for testing
   std::unique_ptr<Index_t> index_{nullptr};
+
+  // an epoch manager for multi-version
+  std::shared_ptr<EpochManager> epoch_manager_{nullptr};
 };
 
 }  // namespace dbgroup::index::test
