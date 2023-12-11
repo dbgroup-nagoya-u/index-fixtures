@@ -164,6 +164,20 @@ class IndexMultiThreadFixture : public testing::Test
   }
 
   [[nodiscard]] auto
+  CreateTargetIDs(                 //
+      const size_t rec_num) const  //
+      -> std::vector<size_t>
+  {
+    std::vector<size_t> target_ids{};
+    target_ids.reserve(rec_num);
+    for (size_t i = 0; i < rec_num; ++i) {
+      target_ids.emplace_back(i);
+    }
+
+    return target_ids;
+  }
+
+  [[nodiscard]] auto
   CreateTargetIDs(  //
       const size_t w_id,
       const AccessPattern pattern)  //
@@ -238,9 +252,73 @@ class IndexMultiThreadFixture : public testing::Test
     }
   }
 
+  void
+  RunMTMultiOperation(
+      const std::function<void(size_t)> &func_single,  // one thread runs func_single
+      const std::function<void(size_t)> &func_multi)   // and the others run func_multi
+  {
+    std::vector<std::thread> threads{};
+    for (size_t i = 0; i < kThreadNum - 1; ++i) {
+      threads.emplace_back(func_multi, i);
+    }
+    threads.emplace_back(func_single, kThreadNum - 1);
+    std::this_thread::sleep_for(std::chrono::milliseconds{kWaitForThreadCreation});
+    std::lock_guard guard{s_mtx_};
+
+    is_ready_ = true;
+    cond_.notify_all();
+
+    for (auto &&t : threads) {
+      t.join();
+    }
+  }
+
   /*####################################################################################
    * Functions for verification
    *##################################################################################*/
+
+  // NOTE: testing SnapshotRead requires concurrent Write Operation
+  void VerifySnapshotRead(  //
+  )
+  {
+    VerifyWrite(!kWriteTwice, kSequential);
+    epoch_manager_->ForwardGlobalEpoch();
+
+    [[maybe_unused]] auto &&guard = epoch_manager_->CreateEpochGuard();
+    const uint64_t timestamp = epoch_manager_->GetCurrentEpoch();
+    epoch_manager_->ForwardGlobalEpoch();
+
+    auto func_snapshot_read = [&]([[maybe_unused]] size_t _) -> void {
+      const auto &target_ids = CreateTargetIDs(kExecNum);
+      for (size_t i = kThreadNum /*Somehow, CreateTargetIDs(w_id,pattern) starts from 8*/;
+           i < target_ids.size(); ++i) {
+        const auto &key = keys_.at(i);
+        const auto read_val = index_->SnapshotRead(key, timestamp, guard, GetLength(key));
+        const auto read_val_ = index_->Read(key, GetLength(key));
+
+        EXPECT_TRUE(read_val);
+        if (!read_val) {
+          const auto t = index_->SnapshotRead(key, timestamp, guard, GetLength(key));
+          continue;
+        }
+        // const auto expected_val = payloads_.at(pay_id);
+        const auto expected_val = payloads_.at(i % kThreadNum);
+        const auto actual_val = read_val.value();
+        EXPECT_TRUE(IsEqual<PayComp>(expected_val, actual_val));
+        if (!IsEqual<PayComp>(expected_val, actual_val)) {
+          auto a = 0;
+          const auto t = index_->SnapshotRead(key, timestamp, guard, GetLength(key));
+        }
+      }
+    };
+    std::function<void(size_t)> func_write = [&](const size_t w_id) -> void {
+      for (const auto id : CreateTargetIDs(w_id, kSequential)) {
+        const auto rc = Write(id, w_id + kThreadNum);
+        EXPECT_EQ(rc, 0);
+      }
+    };
+    RunMTMultiOperation(func_snapshot_read, func_write);
+  }
 
   void
   VerifyRead(  //

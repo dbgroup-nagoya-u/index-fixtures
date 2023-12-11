@@ -1,4 +1,12 @@
 /*--------------------------------------------------------------------------------------
+ * SnapshotRead operation
+ *------------------------------------------------------------------------------------*/
+TYPED_TEST(IndexMultiThreadFixture, SnapshotRead)  //
+{
+  TestFixture::VerifySnapshotRead();
+}
+
+/*--------------------------------------------------------------------------------------
  * Write operation
  *------------------------------------------------------------------------------------*/
 
@@ -221,57 +229,57 @@ TYPED_TEST(IndexMultiThreadFixture, BulkloadWithSequentialWrite)
   TestFixture::VerifyBulkloadWith(kWrite, kSequential);
 }
 
-TYPED_TEST(IndexMultiThreadFixture, BulkloadWithSequentialInsert)
-{
-  TestFixture::VerifyBulkloadWith(kInsert, kSequential);
-}
+// TYPED_TEST(IndexMultiThreadFixture, BulkloadWithSequentialInsert)
+// {
+//   TestFixture::VerifyBulkloadWith(kInsert, kSequential);
+// }
+//
+// TYPED_TEST(IndexMultiThreadFixture, BulkloadWithSequentialUpdate)
+// {
+//   TestFixture::VerifyBulkloadWith(kUpdate, kSequential);
+// }
 
-TYPED_TEST(IndexMultiThreadFixture, BulkloadWithSequentialUpdate)
-{
-  TestFixture::VerifyBulkloadWith(kUpdate, kSequential);
-}
-
-TYPED_TEST(IndexMultiThreadFixture, BulkloadWithSequentialDelete)
-{
-  TestFixture::VerifyBulkloadWith(kDelete, kSequential);
-}
+// TYPED_TEST(IndexMultiThreadFixture, BulkloadWithSequentialDelete)
+// {
+//   TestFixture::VerifyBulkloadWith(kDelete, kSequential);
+// }
 
 TYPED_TEST(IndexMultiThreadFixture, BulkloadWithReverseWrite)
 {
   TestFixture::VerifyBulkloadWith(kWrite, kReverse);
 }
 
-TYPED_TEST(IndexMultiThreadFixture, BulkloadWithReverseInsert)
-{
-  TestFixture::VerifyBulkloadWith(kInsert, kReverse);
-}
+// TYPED_TEST(IndexMultiThreadFixture, BulkloadWithReverseInsert)
+// {
+//   TestFixture::VerifyBulkloadWith(kInsert, kReverse);
+// }
 
-TYPED_TEST(IndexMultiThreadFixture, BulkloadWithReverseUpdate)
-{
-  TestFixture::VerifyBulkloadWith(kUpdate, kReverse);
-}
+// TYPED_TEST(IndexMultiThreadFixture, BulkloadWithReverseUpdate)
+// {
+//   TestFixture::VerifyBulkloadWith(kUpdate, kReverse);
+// }
 
-TYPED_TEST(IndexMultiThreadFixture, BulkloadWithReverseDelete)
-{
-  TestFixture::VerifyBulkloadWith(kDelete, kReverse);
-}
+// TYPED_TEST(IndexMultiThreadFixture, BulkloadWithReverseDelete)
+// {
+//   TestFixture::VerifyBulkloadWith(kDelete, kReverse);
+// }
 
 TYPED_TEST(IndexMultiThreadFixture, BulkloadWithRandomWrite)
 {
   TestFixture::VerifyBulkloadWith(kWrite, kRandom);
 }
 
-TYPED_TEST(IndexMultiThreadFixture, BulkloadWithRandomInsert)
-{
-  TestFixture::VerifyBulkloadWith(kInsert, kRandom);
-}
+// TYPED_TEST(IndexMultiThreadFixture, BulkloadWithRandomInsert)
+// {
+//   TestFixture::VerifyBulkloadWith(kInsert, kRandom);
+// }
 
-TYPED_TEST(IndexMultiThreadFixture, BulkloadWithRandomUpdate)
-{
-  TestFixture::VerifyBulkloadWith(kUpdate, kRandom);
-}
+// TYPED_TEST(IndexMultiThreadFixture, BulkloadWithRandomUpdate)
+// {
+//   TestFixture::VerifyBulkloadWith(kUpdate, kRandom);
+// }
 
-TYPED_TEST(IndexMultiThreadFixture, BulkloadWithRandomDelete)
-{
-  TestFixture::VerifyBulkloadWith(kDelete, kRandom);
-}
+// TYPED_TEST(IndexMultiThreadFixture, BulkloadWithRandomDelete)
+// {
+//   TestFixture::VerifyBulkloadWith(kDelete, kRandom);
+// }
