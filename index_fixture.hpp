@@ -217,7 +217,7 @@ class IndexFixture : public testing::Test
       const auto pay_id = key_id;  // i.e., key_id, the value which is before updated
 
       const auto &key = keys_.at(key_id);
-      const auto read_val = index_->SnapshotRead(key, current_ts, guard, GetLength(key));
+      const auto read_val = index_->SnapshotRead(key, guard, GetLength(key));
 
       EXPECT_TRUE(read_val);
 
