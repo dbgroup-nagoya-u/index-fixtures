@@ -19,6 +19,7 @@ TYPED_TEST(IndexFixture, ConstructWithInternalSMOs)
   constexpr auto kRecNum = TestFixture::kRecNumWithInternalSMOs;
   TestFixture::VerifyWritesWith(!kWriteTwice, !kWithDelete, kSequential, kRecNum);
 }
+
 /*--------------------------------------------------------------------------------------
  * SnapshotRead operation
  *------------------------------------------------------------------------------------*/

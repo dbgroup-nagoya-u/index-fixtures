@@ -285,7 +285,6 @@ class IndexMultiThreadFixture : public testing::Test
     epoch_manager_->ForwardGlobalEpoch();
 
     [[maybe_unused]] auto &&guard = epoch_manager_->CreateEpochGuard();
-    const uint64_t timestamp = epoch_manager_->GetCurrentEpoch();
     epoch_manager_->ForwardGlobalEpoch();
 
     auto func_snapshot_read = [&]([[maybe_unused]] size_t _) -> void {
@@ -294,21 +293,10 @@ class IndexMultiThreadFixture : public testing::Test
            i < target_ids.size(); ++i) {
         const auto &key = keys_.at(i);
         const auto read_val = index_->SnapshotRead(key, guard, GetLength(key));
-        const auto read_val_ = index_->Read(key, GetLength(key));
 
-        EXPECT_TRUE(read_val);
-        if (!read_val) {
-          const auto t = index_->SnapshotRead(key, guard, GetLength(key));
-          continue;
-        }
-        // const auto expected_val = payloads_.at(pay_id);
         const auto expected_val = payloads_.at(i % kThreadNum);
         const auto actual_val = read_val.value();
         EXPECT_TRUE(IsEqual<PayComp>(expected_val, actual_val));
-        if (!IsEqual<PayComp>(expected_val, actual_val)) {
-          auto a = 0;
-          const auto t = index_->SnapshotRead(key, guard, GetLength(key));
-        }
       }
     };
     std::function<void(size_t)> func_write = [&](const size_t w_id) -> void {

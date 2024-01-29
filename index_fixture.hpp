@@ -207,7 +207,6 @@ class IndexFixture : public testing::Test
     const auto &target_ids = CreateTargetIDs(kExecNum, kSequential);
 
     auto &&guard = epoch_manager_->CreateEpochGuard();
-    const auto current_ts = epoch_manager_->GetCurrentEpoch();
     epoch_manager_->ForwardGlobalEpoch();
 
     VerifyWrite(target_ids, kWriteTwice);
