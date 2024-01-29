@@ -284,9 +284,7 @@ class IndexMultiThreadFixture : public testing::Test
   {
     VerifyWrite(!kWriteTwice, kSequential);
     epoch_manager_->ForwardGlobalEpoch();
-
-    [[maybe_unused]] auto &&guard = epoch_manager_->CreateEpochGuard();
-    epoch_manager_->ForwardGlobalEpoch();
+    auto &&guard = epoch_manager_->CreateEpochGuard();
 
     auto func_snapshot_read = [&]([[maybe_unused]] size_t _) -> void {
       const auto &target_ids = CreateTargetIDs(kExecNum);
