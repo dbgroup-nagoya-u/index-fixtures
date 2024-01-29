@@ -338,6 +338,7 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const bool expect_success,
       [[maybe_unused]] const bool is_update)
   {
+    epoch_manager_->ForwardGlobalEpoch();
     auto &&guard = epoch_manager_->CreateEpochGuard();
 
     if constexpr (HasScanOperation<ImplStat>()) {
