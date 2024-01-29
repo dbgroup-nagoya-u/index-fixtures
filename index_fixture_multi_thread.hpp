@@ -283,10 +283,12 @@ class IndexMultiThreadFixture : public testing::Test
   )
   {
     VerifyWrite(!kWriteTwice, kSequential);
-    epoch_manager_->ForwardGlobalEpoch();
+    // epoch_manager_->ForwardGlobalEpoch();
+    std::this_thread::sleep_for(std::chrono::microseconds(kEpochIntervalMicro * 3));
 
     [[maybe_unused]] auto &&guard = epoch_manager_->CreateEpochGuard();
-    epoch_manager_->ForwardGlobalEpoch();
+    // epoch_manager_->ForwardGlobalEpoch();
+    std::this_thread::sleep_for(std::chrono::microseconds(kEpochIntervalMicro * 3));
 
     auto func_snapshot_read = [&]([[maybe_unused]] size_t _) -> void {
       const auto &target_ids = CreateTargetIDs(kExecNum);
@@ -376,7 +378,8 @@ class IndexMultiThreadFixture : public testing::Test
       const AccessPattern pattern)
   {
     VerifyWrite(!kWriteTwice, kSequential);
-    epoch_manager_->ForwardGlobalEpoch();
+    // epoch_manager_->ForwardGlobalEpoch();
+    std::this_thread::sleep_for(std::chrono::microseconds(kEpochIntervalMicro * 3));
 
     std::atomic_bool is_scan_ready = false;
     auto func_full_scan_op = [&](const size_t w_id) -> void {
@@ -392,7 +395,6 @@ class IndexMultiThreadFixture : public testing::Test
 
       auto &&iter = index_->Scan(epoch_guard, begin_key, end_key);
 
-      epoch_manager_->ForwardGlobalEpoch();
       is_scan_ready = true;
 
       for (; iter; ++iter, ++begin_id) {
@@ -686,7 +688,9 @@ class IndexMultiThreadFixture : public testing::Test
     };
 
     auto scan_proc = [&]() -> void {
-      epoch_manager_->ForwardGlobalEpoch();
+      // epoch_manager_->ForwardGlobalEpoch();
+      std::this_thread::sleep_for(std::chrono::microseconds(kEpochIntervalMicro * 3));
+
       auto &&guard = epoch_manager_->CreateEpochGuard();
 
       Key prev_key{};
