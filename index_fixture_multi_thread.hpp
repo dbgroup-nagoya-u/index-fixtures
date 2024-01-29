@@ -376,11 +376,9 @@ class IndexMultiThreadFixture : public testing::Test
   {
     VerifyWrite(!kWriteTwice, kSequential);
     epoch_manager_->ForwardGlobalEpoch();
+    const auto epoch_guard = epoch_manager_->CreateEpochGuard();
 
-    std::atomic_bool is_scan_ready = false;
-    auto func_full_scan_op = [&](const size_t w_id) -> void {
-      const auto epoch_guard = epoch_manager_->CreateEpochGuard();
-
+    auto func_full_scan_op = [&]([[maybe_unused]] const size_t _) -> void {
       size_t begin_id = kThreadNum + kExecNum * 0;
       const auto &begin_k = keys_.at(begin_id);
       const auto &begin_key = std::make_tuple(begin_k, GetLength(begin_k), kRangeClosed);
@@ -390,9 +388,6 @@ class IndexMultiThreadFixture : public testing::Test
       const auto &end_key = std::make_tuple(end_k, GetLength(end_k), kRangeOpened);
 
       auto &&iter = index_->Scan(epoch_guard, begin_key, end_key);
-
-      epoch_manager_->ForwardGlobalEpoch();
-      is_scan_ready = true;
 
       for (; iter; ++iter, ++begin_id) {
         const auto key_id = begin_id;
@@ -409,9 +404,6 @@ class IndexMultiThreadFixture : public testing::Test
     switch (write_ops) {
       case kWrite:
         func_write_op = [&](const size_t w_id) -> void {
-          while (!is_scan_ready) {
-            std::this_thread::sleep_for(std::chrono::microseconds(kEpochIntervalMicro * 1));
-          }
           for (const auto id : CreateTargetIDs(w_id, pattern)) {
             const auto rc = Write(id, w_id + kThreadNum);
             EXPECT_EQ(rc, 0);
@@ -423,9 +415,6 @@ class IndexMultiThreadFixture : public testing::Test
         break;
       case kUpdate:
         func_write_op = [&](const size_t w_id) -> void {
-          while (!is_scan_ready) {
-            std::this_thread::sleep_for(std::chrono::microseconds(kEpochIntervalMicro * 1));
-          }
           for (const auto id : CreateTargetIDs(w_id, pattern)) {
             const auto rc = Update(id, w_id + kThreadNum);
             EXPECT_EQ(rc, 0);
@@ -434,9 +423,6 @@ class IndexMultiThreadFixture : public testing::Test
         break;
       case kDelete:
         func_write_op = [&](const size_t w_id) -> void {
-          while (!is_scan_ready) {
-            std::this_thread::sleep_for(std::chrono::microseconds(kEpochIntervalMicro * 1));
-          }
           for (const auto id : CreateTargetIDs(w_id, pattern)) {
             const auto rc = Delete(id);
             EXPECT_EQ(rc, 0);
