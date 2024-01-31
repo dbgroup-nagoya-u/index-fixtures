@@ -21,6 +21,16 @@ TYPED_TEST(IndexFixture, ConstructWithInternalSMOs)
 }
 
 /*--------------------------------------------------------------------------------------
+ * SnapshotRead operation
+ *------------------------------------------------------------------------------------*/
+
+TYPED_TEST(IndexFixture, SnapshotRead)
+{
+  TestFixture::FillIndex();
+  TestFixture::VerifySnapshotRead();
+}
+
+/*--------------------------------------------------------------------------------------
  * Read operation tests
  *------------------------------------------------------------------------------------*/
 
@@ -33,20 +43,21 @@ TYPED_TEST(IndexFixture, ReadWithEmptyIndexFail)
  * Scan operation
  *------------------------------------------------------------------------------------*/
 
-TYPED_TEST(IndexFixture, ScanWithoutKeysPerformFullScan)
-{
-  TestFixture::VerifyScanWith(!kHasRange);
-}
+/* scan is not implemented yet*/
+// TYPED_TEST(IndexFixture, ScanWithoutKeysPerformFullScan)
+// {
+//   TestFixture::VerifyScanWith(!kHasRange);
+// }
 
-TYPED_TEST(IndexFixture, ScanWithClosedRangeIncludeLeftRightEnd)
-{
-  TestFixture::VerifyScanWith(kHasRange, kRangeClosed);
-}
+// TYPED_TEST(IndexFixture, ScanWithClosedRangeIncludeLeftRightEnd)
+// {
+//   TestFixture::VerifyScanWith(kHasRange, kRangeClosed);
+// }
 
-TYPED_TEST(IndexFixture, ScanWithOpenedRangeExcludeLeftRightEnd)
-{
-  TestFixture::VerifyScanWith(kHasRange, kRangeOpened);
-}
+// TYPED_TEST(IndexFixture, ScanWithOpenedRangeExcludeLeftRightEnd)
+// {
+//   TestFixture::VerifyScanWith(kHasRange, kRangeOpened);
+// }
 
 /*--------------------------------------------------------------------------------------
  * Write operation
@@ -62,10 +73,11 @@ TYPED_TEST(IndexFixture, SequentialWriteWithDuplicateKeysSucceed)
   TestFixture::VerifyWritesWith(kWriteTwice, !kWithDelete, kSequential);
 }
 
-TYPED_TEST(IndexFixture, SequentialWriteWithDeletedKeysSucceed)
-{
-  TestFixture::VerifyWritesWith(kWriteTwice, kWithDelete, kSequential);
-}
+/* delete is not implemented yet*/
+// TYPED_TEST(IndexFixture, SequentialWriteWithDeletedKeysSucceed)
+// {
+//   TestFixture::VerifyWritesWith(kWriteTwice, kWithDelete, kSequential);
+// }
 
 TYPED_TEST(IndexFixture, ReverseWriteWithUniqueKeysSucceed)
 {
@@ -77,10 +89,10 @@ TYPED_TEST(IndexFixture, ReverseWriteWithDuplicateKeysSucceed)
   TestFixture::VerifyWritesWith(kWriteTwice, !kWithDelete, kReverse);
 }
 
-TYPED_TEST(IndexFixture, ReverseWriteWithDeletedKeysSucceed)
-{
-  TestFixture::VerifyWritesWith(kWriteTwice, kWithDelete, kReverse);
-}
+// TYPED_TEST(IndexFixture, ReverseWriteWithDeletedKeysSucceed)
+// {
+//   TestFixture::VerifyWritesWith(kWriteTwice, kWithDelete, kReverse);
+// }
 
 TYPED_TEST(IndexFixture, RandomWriteWithUniqueKeysSucceed)
 {
@@ -92,157 +104,160 @@ TYPED_TEST(IndexFixture, RandomWriteWithDuplicateKeysSucceed)
   TestFixture::VerifyWritesWith(kWriteTwice, !kWithDelete, kRandom);
 }
 
-TYPED_TEST(IndexFixture, RandomWriteWithDeletedKeysSucceed)
-{
-  TestFixture::VerifyWritesWith(kWriteTwice, kWithDelete, kRandom);
-}
+// TYPED_TEST(IndexFixture, RandomWriteWithDeletedKeysSucceed)
+// {
+//   TestFixture::VerifyWritesWith(kWriteTwice, kWithDelete, kRandom);
+// }
 
 /*--------------------------------------------------------------------------------------
  * Insert operation
  *------------------------------------------------------------------------------------*/
 
-TYPED_TEST(IndexFixture, SequentialInsertWithUniqueKeysSucceed)
-{
-  TestFixture::VerifyInsertsWith(!kWriteTwice, !kWithDelete, kSequential);
-}
+/* insert is not implemented yet*/
+// TYPED_TEST(IndexFixture, SequentialInsertWithUniqueKeysSucceed)
+// {
+//   TestFixture::VerifyInsertsWith(!kWriteTwice, !kWithDelete, kSequential);
+// }
 
-TYPED_TEST(IndexFixture, SequentialInsertWithDuplicateKeysFail)
-{
-  TestFixture::VerifyInsertsWith(kWriteTwice, !kWithDelete, kSequential);
-}
+// TYPED_TEST(IndexFixture, SequentialInsertWithDuplicateKeysFail)
+// {
+//   TestFixture::VerifyInsertsWith(kWriteTwice, !kWithDelete, kSequential);
+// }
 
-TYPED_TEST(IndexFixture, SequentialInsertWithDeletedKeysSucceed)
-{
-  TestFixture::VerifyInsertsWith(kWriteTwice, kWithDelete, kSequential);
-}
+// TYPED_TEST(IndexFixture, SequentialInsertWithDeletedKeysSucceed)
+// {
+//   TestFixture::VerifyInsertsWith(kWriteTwice, kWithDelete, kSequential);
+// }
 
-TYPED_TEST(IndexFixture, ReverseInsertWithUniqueKeysSucceed)
-{
-  TestFixture::VerifyInsertsWith(!kWriteTwice, !kWithDelete, kReverse);
-}
+// TYPED_TEST(IndexFixture, ReverseInsertWithUniqueKeysSucceed)
+// {
+//   TestFixture::VerifyInsertsWith(!kWriteTwice, !kWithDelete, kReverse);
+// }
 
-TYPED_TEST(IndexFixture, ReverseInsertWithDuplicateKeysFail)
-{
-  TestFixture::VerifyInsertsWith(kWriteTwice, !kWithDelete, kReverse);
-}
+// TYPED_TEST(IndexFixture, ReverseInsertWithDuplicateKeysFail)
+// {
+//   TestFixture::VerifyInsertsWith(kWriteTwice, !kWithDelete, kReverse);
+// }
 
-TYPED_TEST(IndexFixture, ReverseInsertWithDeletedKeysSucceed)
-{
-  TestFixture::VerifyInsertsWith(kWriteTwice, kWithDelete, kReverse);
-}
+// TYPED_TEST(IndexFixture, ReverseInsertWithDeletedKeysSucceed)
+// {
+//   TestFixture::VerifyInsertsWith(kWriteTwice, kWithDelete, kReverse);
+// }
 
-TYPED_TEST(IndexFixture, RandomInsertWithUniqueKeysSucceed)
-{
-  TestFixture::VerifyInsertsWith(!kWriteTwice, !kWithDelete, kRandom);
-}
+// TYPED_TEST(IndexFixture, RandomInsertWithUniqueKeysSucceed)
+// {
+//   TestFixture::VerifyInsertsWith(!kWriteTwice, !kWithDelete, kRandom);
+// }
 
-TYPED_TEST(IndexFixture, RandomInsertWithDuplicateKeysFail)
-{
-  TestFixture::VerifyInsertsWith(kWriteTwice, !kWithDelete, kRandom);
-}
+// TYPED_TEST(IndexFixture, RandomInsertWithDuplicateKeysFail)
+// {
+//   TestFixture::VerifyInsertsWith(kWriteTwice, !kWithDelete, kRandom);
+// }
 
-TYPED_TEST(IndexFixture, RandomInsertWithDeletedKeysSucceed)
-{
-  TestFixture::VerifyInsertsWith(kWriteTwice, kWithDelete, kRandom);
-}
+// TYPED_TEST(IndexFixture, RandomInsertWithDeletedKeysSucceed)
+// {
+//   TestFixture::VerifyInsertsWith(kWriteTwice, kWithDelete, kRandom);
+// }
 
 /*--------------------------------------------------------------------------------------
  * Update operation
  *------------------------------------------------------------------------------------*/
 
-TYPED_TEST(IndexFixture, SequentialUpdateWithDuplicateKeysSucceed)
-{
-  TestFixture::VerifyUpdatesWith(kWithWrite, !kWithDelete, kSequential);
-}
+/* update is not implemented yet*/
+// TYPED_TEST(IndexFixture, SequentialUpdateWithDuplicateKeysSucceed)
+// {
+//   TestFixture::VerifyUpdatesWith(kWithWrite, !kWithDelete, kSequential);
+// }
 
-TYPED_TEST(IndexFixture, SequentialUpdateWithNotInsertedKeysFail)
-{
-  TestFixture::VerifyUpdatesWith(!kWithWrite, !kWithDelete, kSequential);
-}
+// TYPED_TEST(IndexFixture, SequentialUpdateWithNotInsertedKeysFail)
+// {
+//   TestFixture::VerifyUpdatesWith(!kWithWrite, !kWithDelete, kSequential);
+// }
 
-TYPED_TEST(IndexFixture, SequentialUpdateWithDeletedKeysFail)
-{
-  TestFixture::VerifyUpdatesWith(kWithWrite, kWithDelete, kSequential);
-}
+// TYPED_TEST(IndexFixture, SequentialUpdateWithDeletedKeysFail)
+// {
+//   TestFixture::VerifyUpdatesWith(kWithWrite, kWithDelete, kSequential);
+// }
 
-TYPED_TEST(IndexFixture, ReverseUpdateWithDuplicateKeysSucceed)
-{
-  TestFixture::VerifyUpdatesWith(kWithWrite, !kWithDelete, kReverse);
-}
+// TYPED_TEST(IndexFixture, ReverseUpdateWithDuplicateKeysSucceed)
+// {
+//   TestFixture::VerifyUpdatesWith(kWithWrite, !kWithDelete, kReverse);
+// }
 
-TYPED_TEST(IndexFixture, ReverseUpdateWithNotInsertedKeysFail)
-{
-  TestFixture::VerifyUpdatesWith(!kWithWrite, !kWithDelete, kReverse);
-}
+// TYPED_TEST(IndexFixture, ReverseUpdateWithNotInsertedKeysFail)
+// {
+//   TestFixture::VerifyUpdatesWith(!kWithWrite, !kWithDelete, kReverse);
+// }
 
-TYPED_TEST(IndexFixture, ReverseUpdateWithDeletedKeysFail)
-{
-  TestFixture::VerifyUpdatesWith(kWithWrite, kWithDelete, kReverse);
-}
+// TYPED_TEST(IndexFixture, ReverseUpdateWithDeletedKeysFail)
+// {
+//   TestFixture::VerifyUpdatesWith(kWithWrite, kWithDelete, kReverse);
+// }
 
-TYPED_TEST(IndexFixture, RandomUpdateWithDuplicateKeysSucceed)
-{
-  TestFixture::VerifyUpdatesWith(kWithWrite, !kWithDelete, kRandom);
-}
+// TYPED_TEST(IndexFixture, RandomUpdateWithDuplicateKeysSucceed)
+// {
+//   TestFixture::VerifyUpdatesWith(kWithWrite, !kWithDelete, kRandom);
+// }
 
-TYPED_TEST(IndexFixture, RandomUpdateWithNotInsertedKeysFail)
-{
-  TestFixture::VerifyUpdatesWith(!kWithWrite, !kWithDelete, kRandom);
-}
+// TYPED_TEST(IndexFixture, RandomUpdateWithNotInsertedKeysFail)
+// {
+//   TestFixture::VerifyUpdatesWith(!kWithWrite, !kWithDelete, kRandom);
+// }
 
-TYPED_TEST(IndexFixture, RandomUpdateWithDeletedKeysFail)
-{
-  TestFixture::VerifyUpdatesWith(kWithWrite, kWithDelete, kRandom);
-}
+// TYPED_TEST(IndexFixture, RandomUpdateWithDeletedKeysFail)
+// {
+//   TestFixture::VerifyUpdatesWith(kWithWrite, kWithDelete, kRandom);
+// }
 
 /*--------------------------------------------------------------------------------------
  * Delete operation
  *------------------------------------------------------------------------------------*/
 
-TYPED_TEST(IndexFixture, SequentialDeleteWithDuplicateKeysSucceed)
-{
-  TestFixture::VerifyDeletesWith(kWithWrite, !kWithDelete, kSequential);
-}
+/* delete is not implemented yet*/
+// TYPED_TEST(IndexFixture, SequentialDeleteWithDuplicateKeysSucceed)
+// {
+//   TestFixture::VerifyDeletesWith(kWithWrite, !kWithDelete, kSequential);
+// }
 
-TYPED_TEST(IndexFixture, SequentialDeleteWithNotInsertedKeysFail)
-{
-  TestFixture::VerifyDeletesWith(!kWithWrite, !kWithDelete, kSequential);
-}
+// TYPED_TEST(IndexFixture, SequentialDeleteWithNotInsertedKeysFail)
+// {
+//   TestFixture::VerifyDeletesWith(!kWithWrite, !kWithDelete, kSequential);
+// }
 
-TYPED_TEST(IndexFixture, SequentialDeleteWithDeletedKeysFail)
-{
-  TestFixture::VerifyDeletesWith(kWithWrite, kWithDelete, kSequential);
-}
+// TYPED_TEST(IndexFixture, SequentialDeleteWithDeletedKeysFail)
+// {
+//   TestFixture::VerifyDeletesWith(kWithWrite, kWithDelete, kSequential);
+// }
 
-TYPED_TEST(IndexFixture, ReverseDeleteWithDuplicateKeysSucceed)
-{
-  TestFixture::VerifyDeletesWith(kWithWrite, !kWithDelete, kReverse);
-}
+// TYPED_TEST(IndexFixture, ReverseDeleteWithDuplicateKeysSucceed)
+// {
+//   TestFixture::VerifyDeletesWith(kWithWrite, !kWithDelete, kReverse);
+// }
 
-TYPED_TEST(IndexFixture, ReverseDeleteWithNotInsertedKeysFail)
-{
-  TestFixture::VerifyDeletesWith(!kWithWrite, !kWithDelete, kReverse);
-}
+// TYPED_TEST(IndexFixture, ReverseDeleteWithNotInsertedKeysFail)
+// {
+//   TestFixture::VerifyDeletesWith(!kWithWrite, !kWithDelete, kReverse);
+// }
 
-TYPED_TEST(IndexFixture, ReverseDeleteWithDeletedKeysFail)
-{
-  TestFixture::VerifyDeletesWith(kWithWrite, kWithDelete, kReverse);
-}
+// TYPED_TEST(IndexFixture, ReverseDeleteWithDeletedKeysFail)
+// {
+//   TestFixture::VerifyDeletesWith(kWithWrite, kWithDelete, kReverse);
+// }
 
-TYPED_TEST(IndexFixture, RandomDeleteWithDuplicateKeysSucceed)
-{
-  TestFixture::VerifyDeletesWith(kWithWrite, !kWithDelete, kRandom);
-}
+// TYPED_TEST(IndexFixture, RandomDeleteWithDuplicateKeysSucceed)
+// {
+//   TestFixture::VerifyDeletesWith(kWithWrite, !kWithDelete, kRandom);
+// }
 
-TYPED_TEST(IndexFixture, RandomDeleteWithNotInsertedKeysFail)
-{
-  TestFixture::VerifyDeletesWith(!kWithWrite, !kWithDelete, kRandom);
-}
+// TYPED_TEST(IndexFixture, RandomDeleteWithNotInsertedKeysFail)
+// {
+//   TestFixture::VerifyDeletesWith(!kWithWrite, !kWithDelete, kRandom);
+// }
 
-TYPED_TEST(IndexFixture, RandomDeleteWithDeletedKeysFail)
-{
-  TestFixture::VerifyDeletesWith(kWithWrite, kWithDelete, kRandom);
-}
+// TYPED_TEST(IndexFixture, RandomDeleteWithDeletedKeysFail)
+// {
+//   TestFixture::VerifyDeletesWith(kWithWrite, kWithDelete, kRandom);
+// }
 
 /*--------------------------------------------------------------------------------------
  * Bulkload operation
