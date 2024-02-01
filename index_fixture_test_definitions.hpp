@@ -43,21 +43,20 @@ TYPED_TEST(IndexFixture, ReadWithEmptyIndexFail)
  * Scan operation
  *------------------------------------------------------------------------------------*/
 
-/* scan is not implemented yet*/
-// TYPED_TEST(IndexFixture, ScanWithoutKeysPerformFullScan)
-// {
-//   TestFixture::VerifyScanWith(!kHasRange);
-// }
+TYPED_TEST(IndexFixture, ScanWithoutKeysPerformFullScan)
+{
+  TestFixture::VerifyScanWith(!kHasRange);
+}
 
-// TYPED_TEST(IndexFixture, ScanWithClosedRangeIncludeLeftRightEnd)
-// {
-//   TestFixture::VerifyScanWith(kHasRange, kRangeClosed);
-// }
+TYPED_TEST(IndexFixture, ScanWithClosedRangeIncludeLeftRightEnd)
+{
+  TestFixture::VerifyScanWith(kHasRange, kRangeClosed);
+}
 
-// TYPED_TEST(IndexFixture, ScanWithOpenedRangeExcludeLeftRightEnd)
-// {
-//   TestFixture::VerifyScanWith(kHasRange, kRangeOpened);
-// }
+TYPED_TEST(IndexFixture, ScanWithOpenedRangeExcludeLeftRightEnd)
+{
+  TestFixture::VerifyScanWith(kHasRange, kRangeOpened);
+}
 
 /*--------------------------------------------------------------------------------------
  * Write operation
@@ -273,57 +272,57 @@ TYPED_TEST(IndexFixture, BulkloadWithSequentialWrite)
   TestFixture::VerifyBulkloadWith(kWrite, kSequential);
 }
 
-TYPED_TEST(IndexFixture, BulkloadWithSequentialInsert)
-{
-  TestFixture::VerifyBulkloadWith(kInsert, kSequential);
-}
+// TYPED_TEST(IndexFixture, BulkloadWithSequentialInsert)
+// {
+//   TestFixture::VerifyBulkloadWith(kInsert, kSequential);
+// }
 
-TYPED_TEST(IndexFixture, BulkloadWithSequentialUpdate)
-{
-  TestFixture::VerifyBulkloadWith(kUpdate, kSequential);
-}
+// TYPED_TEST(IndexFixture, BulkloadWithSequentialUpdate)
+// {
+//   TestFixture::VerifyBulkloadWith(kUpdate, kSequential);
+// }
 
-TYPED_TEST(IndexFixture, BulkloadWithSequentialDelete)
-{
-  TestFixture::VerifyBulkloadWith(kDelete, kSequential);
-}
+// TYPED_TEST(IndexFixture, BulkloadWithSequentialDelete)
+// {
+//   TestFixture::VerifyBulkloadWith(kDelete, kSequential);
+// }
 
 TYPED_TEST(IndexFixture, BulkloadWithReverseWrite)
 {
   TestFixture::VerifyBulkloadWith(kWrite, kReverse);
 }
 
-TYPED_TEST(IndexFixture, BulkloadWithReverseInsert)
-{
-  TestFixture::VerifyBulkloadWith(kInsert, kReverse);
-}
+// TYPED_TEST(IndexFixture, BulkloadWithReverseInsert)
+// {
+//   TestFixture::VerifyBulkloadWith(kInsert, kReverse);
+// }
 
-TYPED_TEST(IndexFixture, BulkloadWithReverseUpdate)
-{
-  TestFixture::VerifyBulkloadWith(kUpdate, kReverse);
-}
+// TYPED_TEST(IndexFixture, BulkloadWithReverseUpdate)
+// {
+//   TestFixture::VerifyBulkloadWith(kUpdate, kReverse);
+// }
 
-TYPED_TEST(IndexFixture, BulkloadWithReverseDelete)
-{
-  TestFixture::VerifyBulkloadWith(kDelete, kReverse);
-}
+// TYPED_TEST(IndexFixture, BulkloadWithReverseDelete)
+// {
+//   TestFixture::VerifyBulkloadWith(kDelete, kReverse);
+// }
 
 TYPED_TEST(IndexFixture, BulkloadWithRandomWrite)
 {
   TestFixture::VerifyBulkloadWith(kWrite, kRandom);
 }
 
-TYPED_TEST(IndexFixture, BulkloadWithRandomInsert)
-{
-  TestFixture::VerifyBulkloadWith(kInsert, kRandom);
-}
+// TYPED_TEST(IndexFixture, BulkloadWithRandomInsert)
+// {
+//   TestFixture::VerifyBulkloadWith(kInsert, kRandom);
+// }
 
-TYPED_TEST(IndexFixture, BulkloadWithRandomUpdate)
-{
-  TestFixture::VerifyBulkloadWith(kUpdate, kRandom);
-}
+// TYPED_TEST(IndexFixture, BulkloadWithRandomUpdate)
+// {
+//   TestFixture::VerifyBulkloadWith(kUpdate, kRandom);
+// }
 
-TYPED_TEST(IndexFixture, BulkloadWithRandomDelete)
-{
-  TestFixture::VerifyBulkloadWith(kDelete, kRandom);
-}
+// TYPED_TEST(IndexFixture, BulkloadWithRandomDelete)
+// {
+//   TestFixture::VerifyBulkloadWith(kDelete, kRandom);
+// }

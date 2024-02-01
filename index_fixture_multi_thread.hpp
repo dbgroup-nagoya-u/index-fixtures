@@ -69,6 +69,7 @@ class IndexMultiThreadFixture : public testing::Test
   static constexpr size_t kThreadNum = DBGROUP_TEST_THREAD_NUM;
   static constexpr size_t kKeyNum = (kExecNum + 2) * kThreadNum;
   static constexpr size_t kWaitForThreadCreation = 100;
+  static constexpr size_t kEpochIntervalMicro = 1000;
 
   /*####################################################################################
    * Setup/Teardown
@@ -82,7 +83,7 @@ class IndexMultiThreadFixture : public testing::Test
 
     auto epoch_manager = std::make_shared<EpochManager>();
     epoch_manager_ = epoch_manager;
-    index_ = std::make_unique<Index_t>(epoch_manager);
+    index_ = std::make_unique<Index_t>(epoch_manager, kEpochIntervalMicro);
     is_ready_ = false;
   }
 
@@ -283,9 +284,7 @@ class IndexMultiThreadFixture : public testing::Test
   {
     VerifyWrite(!kWriteTwice, kSequential);
     epoch_manager_->ForwardGlobalEpoch();
-
-    [[maybe_unused]] auto &&guard = epoch_manager_->CreateEpochGuard();
-    epoch_manager_->ForwardGlobalEpoch();
+    auto &&guard = epoch_manager_->CreateEpochGuard();
 
     auto func_snapshot_read = [&]([[maybe_unused]] size_t _) -> void {
       const auto &target_ids = CreateTargetIDs(kExecNum);
@@ -337,6 +336,9 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const bool expect_success,
       [[maybe_unused]] const bool is_update)
   {
+    epoch_manager_->ForwardGlobalEpoch();
+    auto &&guard = epoch_manager_->CreateEpochGuard();
+
     if constexpr (HasScanOperation<ImplStat>()) {
       auto mt_worker = [&](const size_t w_id) -> void {
         size_t begin_id = kThreadNum + kExecNum * w_id;
@@ -347,7 +349,7 @@ class IndexMultiThreadFixture : public testing::Test
         const auto &end_k = keys_.at(end_id);
         const auto &end_key = std::make_tuple(end_k, GetLength(end_k), kRangeOpened);
 
-        auto &&iter = index_->Scan(begin_key, end_key);
+        auto &&iter = index_->Scan(guard, begin_key, end_key);
         if (expect_success) {
           for (; iter; ++iter, ++begin_id) {
             const auto key_id = begin_id;
@@ -365,6 +367,74 @@ class IndexMultiThreadFixture : public testing::Test
 
       RunMT(mt_worker);
     }
+  }
+
+  void
+  VerifySnapshotScanWith(  //
+      const WriteOperation write_ops,
+      const AccessPattern pattern)
+  {
+    VerifyWrite(!kWriteTwice, kSequential);
+    epoch_manager_->ForwardGlobalEpoch();
+    const auto epoch_guard = epoch_manager_->CreateEpochGuard();
+
+    auto func_full_scan_op = [&]([[maybe_unused]] const size_t _) -> void {
+      size_t begin_id = kThreadNum + kExecNum * 0;
+      const auto &begin_k = keys_.at(begin_id);
+      const auto &begin_key = std::make_tuple(begin_k, GetLength(begin_k), kRangeClosed);
+
+      size_t end_id = kExecNum * kThreadNum;
+      const auto &end_k = keys_.at(end_id);
+      const auto &end_key = std::make_tuple(end_k, GetLength(end_k), kRangeOpened);
+
+      auto &&iter = index_->Scan(epoch_guard, begin_key, end_key);
+
+      for (; iter; ++iter, ++begin_id) {
+        const auto key_id = begin_id;
+        const auto val_id = key_id % kThreadNum;
+
+        const auto &[key, payload] = *iter;
+        EXPECT_TRUE(IsEqual<KeyComp>(keys_.at(key_id), key));
+        EXPECT_TRUE(IsEqual<PayComp>(payloads_.at(val_id), payload));
+      }
+      EXPECT_EQ(begin_id, end_id);
+    };
+
+    std::function<void(size_t)> func_write_op;
+    switch (write_ops) {
+      case kWrite:
+        func_write_op = [&](const size_t w_id) -> void {
+          for (const auto id : CreateTargetIDs(w_id, pattern)) {
+            const auto rc = Write(id, w_id + kThreadNum);
+            EXPECT_EQ(rc, 0);
+          }
+        };
+        break;
+      case kInsert:
+        assert(false);  // Insert is an invalid operation for testing versioned scan
+        break;
+      case kUpdate:
+        func_write_op = [&](const size_t w_id) -> void {
+          for (const auto id : CreateTargetIDs(w_id, pattern)) {
+            const auto rc = Update(id, w_id + kThreadNum);
+            EXPECT_EQ(rc, 0);
+          }
+        };
+        break;
+      case kDelete:
+        func_write_op = [&](const size_t w_id) -> void {
+          for (const auto id : CreateTargetIDs(w_id, pattern)) {
+            const auto rc = Delete(id);
+            EXPECT_EQ(rc, 0);
+          }
+        };
+        break;
+      case kWithoutWrite:
+      default:
+        break;
+    }
+
+    RunMTMultiOperation(func_full_scan_op, func_write_op);
   }
 
   void
@@ -601,6 +671,9 @@ class IndexMultiThreadFixture : public testing::Test
     };
 
     auto scan_proc = [&]() -> void {
+      epoch_manager_->ForwardGlobalEpoch();
+      auto &&guard = epoch_manager_->CreateEpochGuard();
+
       Key prev_key{};
       if constexpr (IsVarLen<Key>()) {
         prev_key = reinterpret_cast<Key>(::operator new(kVarDataLength));
@@ -611,7 +684,7 @@ class IndexMultiThreadFixture : public testing::Test
         } else {
           prev_key = keys_.at(0);
         }
-        for (auto &&iter = index_->Scan(); iter; ++iter) {
+        for (auto &&iter = index_->Scan(guard); iter; ++iter) {
           const auto &[key, payload] = *iter;
           EXPECT_TRUE(KeyComp{}(prev_key, key));
           if constexpr (IsVarLen<Key>()) {

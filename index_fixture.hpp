@@ -257,6 +257,9 @@ class IndexFixture : public testing::Test
       [[maybe_unused]] const bool expect_success = true,
       [[maybe_unused]] const bool write_twice = false)
   {
+    epoch_manager_->ForwardGlobalEpoch();
+    auto &&guard = epoch_manager_->CreateEpochGuard();
+
     if constexpr (HasScanOperation<ImplStat>()) {
       ScanKey begin_key = std::nullopt;
       size_t begin_pos = 0;
@@ -276,7 +279,7 @@ class IndexFixture : public testing::Test
         end_pos = (end_closed) ? end_id + 1 : end_id;
       }
 
-      auto &&iter = index_->Scan(begin_key, end_key);
+      auto &&iter = index_->Scan(guard, begin_key, end_key);
       if (expect_success) {
         for (; iter; ++iter, ++begin_pos) {
           const auto &[key, payload] = *iter;
