@@ -1,6 +1,6 @@
-/*--------------------------------------------------------------------------------------
+/*------------------------------------------------------------------------------
  * Write operation
- *------------------------------------------------------------------------------------*/
+ *----------------------------------------------------------------------------*/
 
 TYPED_TEST(IndexMultiThreadFixture, SequentialWriteWithUniqueKeysSucceed)
 {
@@ -47,9 +47,9 @@ TYPED_TEST(IndexMultiThreadFixture, RandomWriteWithDeletedKeysSucceed)
   TestFixture::VerifyWritesWith(kWriteTwice, kWithDelete, kRandom);
 }
 
-/*--------------------------------------------------------------------------------------
+/*------------------------------------------------------------------------------
  * Insert operation
- *------------------------------------------------------------------------------------*/
+ *----------------------------------------------------------------------------*/
 
 TYPED_TEST(IndexMultiThreadFixture, SequentialInsertWithUniqueKeysSucceed)
 {
@@ -96,9 +96,9 @@ TYPED_TEST(IndexMultiThreadFixture, RandomInsertWithDeletedKeysSucceed)
   TestFixture::VerifyInsertsWith(kWriteTwice, kWithDelete, kRandom);
 }
 
-/*--------------------------------------------------------------------------------------
+/*------------------------------------------------------------------------------
  * Update operation
- *------------------------------------------------------------------------------------*/
+ *----------------------------------------------------------------------------*/
 
 TYPED_TEST(IndexMultiThreadFixture, SequentialUpdateWithDuplicateKeysSucceed)
 {
@@ -145,9 +145,9 @@ TYPED_TEST(IndexMultiThreadFixture, RandomUpdateWithDeletedKeysFail)
   TestFixture::VerifyUpdatesWith(kWithWrite, kWithDelete, kRandom);
 }
 
-/*--------------------------------------------------------------------------------------
+/*------------------------------------------------------------------------------
  * Delete operation
- *------------------------------------------------------------------------------------*/
+ *----------------------------------------------------------------------------*/
 
 TYPED_TEST(IndexMultiThreadFixture, SequentialDeleteWithDuplicateKeysSucceed)
 {
@@ -194,18 +194,18 @@ TYPED_TEST(IndexMultiThreadFixture, RandomDeleteWithDeletedKeysFail)
   TestFixture::VerifyDeletesWith(kWithWrite, kWithDelete, kRandom);
 }
 
-/*--------------------------------------------------------------------------------------
+/*------------------------------------------------------------------------------
  * Concurrent Split/Merge
- *------------------------------------------------------------------------------------*/
+ *----------------------------------------------------------------------------*/
 
 TYPED_TEST(IndexMultiThreadFixture, ConcurrentMixedOperationsSucceed)
 {
   TestFixture::VerifyConcurrentSMOs();
 }
 
-/*--------------------------------------------------------------------------------------
+/*------------------------------------------------------------------------------
  * Bulkload operation
- *------------------------------------------------------------------------------------*/
+ *----------------------------------------------------------------------------*/
 
 TYPED_TEST(IndexMultiThreadFixture, BulkloadWithoutAdditionalWriteOperations)
 {
