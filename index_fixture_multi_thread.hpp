@@ -19,11 +19,15 @@
 
 // C++ standard libraries
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <random>
 #include <shared_mutex>
 #include <thread>
@@ -31,7 +35,7 @@
 #include <utility>
 #include <vector>
 
-// external sources
+// external libraries
 #include "gtest/gtest.h"
 
 // local sources
@@ -77,6 +81,7 @@ class IndexMultiThreadFixture : public testing::Test
   {
     index_ = std::make_unique<Index_t>();
     is_ready_ = false;
+    no_failure_ = true;
   }
 
   void
@@ -88,6 +93,106 @@ class IndexMultiThreadFixture : public testing::Test
   /*############################################################################
    * Utility functions
    *##########################################################################*/
+
+  void
+  AssertTrue(  //
+      const bool expect_true,
+      const std::string_view &tag)
+  {
+    if (!expect_true) {
+      const std::lock_guard lock{io_mtx_};
+      std::cout << "  [" << tag << "] The actual value was not true.\n";
+      throw std::runtime_error{""};
+    }
+  }
+
+  void
+  AssertFalse(  //
+      const bool expect_false,
+      const std::string_view &tag)
+  {
+    if (expect_false) {
+      const std::lock_guard lock{io_mtx_};
+      std::cout << "  [" << tag << "] The actual value was not false.\n";
+      throw std::runtime_error{""};
+    }
+  }
+
+  template <class T>
+  void
+  AssertEQ(  //
+      const T &expected,
+      const T &actual,
+      const std::string_view &tag)
+  {
+    bool is_equal;
+    if constexpr (std::is_same_v<T, char *>) {
+      is_equal = std::strcmp(expected, actual) == 0;
+    } else if constexpr (std::is_same_v<T, uint64_t *>) {
+      is_equal = *expected == *actual;
+    } else {
+      is_equal = expected == actual;
+    }
+
+    if (!is_equal) {
+      const std::lock_guard lock{io_mtx_};
+      std::cout << "  [" << tag << "] The actual value was different from the expected one.\n"
+                << "    expected: " << expected << "\n"
+                << "    actual  : " << actual << "\n";
+      throw std::runtime_error{""};
+    }
+  }
+
+  template <class T>
+  void
+  AssertNE(  //
+      const T &expected,
+      const T &actual,
+      const std::string_view &tag)
+  {
+    bool is_not_equal;
+    if constexpr (std::is_same_v<T, char *>) {
+      is_not_equal = std::strcmp(expected, actual) != 0;
+    } else if constexpr (std::is_same_v<T, uint64_t *>) {
+      is_not_equal = *expected != *actual;
+    } else {
+      is_not_equal = expected != actual;
+    }
+
+    if (!is_not_equal) {
+      const std::lock_guard lock{io_mtx_};
+      std::cout << "  [" << tag << "] The actual value was equal to the expected one.\n"
+                << "    expected: " << expected << "\n"
+                << "    actual  : " << actual << "\n";
+      throw std::runtime_error{""};
+    }
+  }
+
+  template <class T>
+  void
+  AssertLT(  //
+      const T &lhs,
+      const T &rhs,
+      const std::string_view &tag)
+  {
+    bool is_less;
+    if constexpr (std::is_same_v<T, char *>) {
+      is_less = std::strcmp(lhs, rhs) < 0;
+    } else if constexpr (std::is_same_v<T, uint64_t *>) {
+      is_less = *lhs < *rhs;
+    } else {
+      is_less = lhs < rhs;
+    }
+
+    if (!is_less) {
+      const std::lock_guard lock{io_mtx_};
+      std::cout << "  [" << tag
+                << "] The left-hand side value was larger the right-hand side one.\n"
+                << "    lhs: " << lhs << "\n"
+                << "    rhs: " << rhs << "\n";
+      throw std::runtime_error{""};
+    }
+  }
 
   void
   PrepareData()
@@ -111,7 +216,7 @@ class IndexMultiThreadFixture : public testing::Test
     if constexpr (HasWriteOperation<ImplStat>()) {
       const auto &key = keys_.at(key_id);
       const auto &payload = payloads_.at(pay_id);
-      return index_->Write(key, payload, GetLength(key), GetLength(payload));
+      return static_cast<int>(index_->Write(key, payload, GetLength(key), GetLength(payload)));
     } else {
       return 0;
     }
@@ -125,7 +230,7 @@ class IndexMultiThreadFixture : public testing::Test
     if constexpr (HasInsertOperation<ImplStat>()) {
       const auto &key = keys_.at(key_id);
       const auto &payload = payloads_.at(pay_id);
-      return index_->Insert(key, payload, GetLength(key), GetLength(payload));
+      return static_cast<int>(index_->Insert(key, payload, GetLength(key), GetLength(payload)));
     } else {
       return 0;
     }
@@ -139,18 +244,19 @@ class IndexMultiThreadFixture : public testing::Test
     if constexpr (HasUpdateOperation<ImplStat>()) {
       const auto &key = keys_.at(key_id);
       const auto &payload = payloads_.at(pay_id);
-      return index_->Update(key, payload, GetLength(key), GetLength(payload));
+      return static_cast<int>(index_->Update(key, payload, GetLength(key), GetLength(payload)));
     } else {
       return 0;
     }
   }
 
   auto
-  Delete([[maybe_unused]] const size_t key_id)
+  Delete(  //
+      [[maybe_unused]] const size_t key_id)
   {
     if constexpr (HasDeleteOperation<ImplStat>()) {
       const auto &key = keys_.at(key_id);
-      return index_->Delete(key, GetLength(key));
+      return static_cast<int>(index_->Delete(key, GetLength(key)));
     } else {
       return 0;
     }
@@ -182,10 +288,10 @@ class IndexMultiThreadFixture : public testing::Test
         std::shuffle(target_ids.begin(), target_ids.end(), rand_engine);
       }
     }
-
-    std::unique_lock lock{x_mtx_};
-    cond_.wait(lock, [this] { return is_ready_; });
-
+    {
+      std::unique_lock lock{x_mtx_};
+      cond_.wait(lock, [this] { return is_ready_; });
+    }
     return target_ids;
   }
 
@@ -213,19 +319,29 @@ class IndexMultiThreadFixture : public testing::Test
   }
 
   void
-  RunMT(const std::function<void(size_t)> &func)
+  RunMT(  //
+      const std::function<void(size_t)> &func)
   {
     std::vector<std::thread> threads{};
     for (size_t i = 0; i < kThreadNum; ++i) {
-      threads.emplace_back(func, i);
+      threads.emplace_back(
+          [&](const size_t id) {
+            try {
+              func(id);
+            } catch ([[maybe_unused]] const std::exception &e) {
+              no_failure_.store(false, std::memory_order_relaxed);
+              ADD_FAILURE();
+            }
+          },
+          i);
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds{kWaitForThreadCreation});
-    std::lock_guard guard{s_mtx_};
-
-    is_ready_ = true;
-    cond_.notify_all();
-
+    {
+      std::lock_guard guard{s_mtx_};
+      is_ready_ = true;
+      cond_.notify_all();
+    }
     for (auto &&t : threads) {
       t.join();
     }
@@ -241,21 +357,26 @@ class IndexMultiThreadFixture : public testing::Test
       const bool is_update,
       const AccessPattern pattern)
   {
+    if (!no_failure_.load(std::memory_order_relaxed)) return;
+
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
+        if (!no_failure_.load(std::memory_order_relaxed)) break;
         const auto &key = keys_.at(id);
         const auto &read_val = index_->Read(key, GetLength(key));
         if (expect_success) {
-          ASSERT_TRUE(read_val);
-          const auto expected_val = payloads_.at((is_update) ? w_id + kThreadNum : w_id);
-          const auto actual_val = read_val.value();
-          EXPECT_TRUE(IsEqual<PayComp>(expected_val, actual_val));
+          AssertTrue(static_cast<bool>(read_val), "Read: RC");
+          if (read_val) {
+            const auto expected_val = payloads_.at((is_update) ? w_id + kThreadNum : w_id);
+            AssertEQ(expected_val, read_val.value(), "Read: payload");
+          }
         } else {
-          EXPECT_FALSE(read_val);
+          AssertFalse(static_cast<bool>(read_val), "Read: RC");
         }
       }
     };
 
+    std::cout << "  [dbgroup] read...\n";
     RunMT(mt_worker);
   }
 
@@ -265,6 +386,8 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const bool is_update)
   {
     if constexpr (HasScanOperation<ImplStat>()) {
+      if (!no_failure_.load(std::memory_order_relaxed)) return;
+
       auto mt_worker = [&](const size_t w_id) -> void {
         size_t begin_id = kThreadNum + kExecNum * w_id;
         const auto &begin_k = keys_.at(begin_id);
@@ -277,19 +400,20 @@ class IndexMultiThreadFixture : public testing::Test
         auto &&iter = index_->Scan(begin_key, end_key);
         if (expect_success) {
           for (; iter; ++iter, ++begin_id) {
+            if (!no_failure_.load(std::memory_order_relaxed)) break;
             const auto key_id = begin_id;
             const auto val_id =
                 (is_update) ? key_id % kThreadNum + kThreadNum : key_id % kThreadNum;
-
             const auto &[key, payload] = *iter;
-            EXPECT_TRUE(IsEqual<KeyComp>(keys_.at(key_id), key));
-            EXPECT_TRUE(IsEqual<PayComp>(payloads_.at(val_id), payload));
+            AssertEQ(keys_.at(key_id), key, "Scan: key");
+            AssertEQ(payloads_.at(val_id), payload, "Scan: payload");
           }
-          EXPECT_EQ(begin_id, end_id);
+          AssertEQ(begin_id, end_id, "Scan: # of records");
         }
-        EXPECT_FALSE(iter);
+        AssertFalse(static_cast<bool>(iter), "Scan: iterator reach end");
       };
 
+      std::cout << "  [dbgroup] scan...\n";
       RunMT(mt_worker);
     }
   }
@@ -299,13 +423,17 @@ class IndexMultiThreadFixture : public testing::Test
       const bool is_update,
       const AccessPattern pattern)
   {
+    if (!no_failure_.load(std::memory_order_relaxed)) return;
+
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
-        const auto rc = Write(id, (is_update) ? w_id + kThreadNum : w_id);
-        EXPECT_EQ(rc, 0);
+        if (!no_failure_.load(std::memory_order_relaxed)) break;
+        const auto pay_id = (is_update) ? w_id + kThreadNum : w_id;
+        AssertEQ(Write(id, pay_id), 0, "Write: RC");
       }
     };
 
+    std::cout << "  [dbgroup] write...\n";
     RunMT(mt_worker);
   }
 
@@ -315,17 +443,21 @@ class IndexMultiThreadFixture : public testing::Test
       const bool is_update,
       const AccessPattern pattern)
   {
+    if (!no_failure_.load(std::memory_order_relaxed)) return;
+
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
-        const auto rc = Insert(id, (is_update) ? w_id + kThreadNum : w_id);
+        if (!no_failure_.load(std::memory_order_relaxed)) break;
+        const auto pay_id = (is_update) ? w_id + kThreadNum : w_id;
         if (expect_success) {
-          EXPECT_EQ(rc, 0);
+          AssertEQ(Insert(id, pay_id), 0, "Insert: RC");
         } else {
-          EXPECT_NE(rc, 0);
+          AssertNE(Insert(id, pay_id), 0, "Insert: RC");
         }
       }
     };
 
+    std::cout << "  [dbgroup] insert...\n";
     RunMT(mt_worker);
   }
 
@@ -334,17 +466,21 @@ class IndexMultiThreadFixture : public testing::Test
       const bool expect_success,
       const AccessPattern pattern)
   {
+    if (!no_failure_.load(std::memory_order_relaxed)) return;
+
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
-        const auto rc = Update(id, w_id + kThreadNum);
+        if (!no_failure_.load(std::memory_order_relaxed)) break;
+        const auto pay_id = w_id + kThreadNum;
         if (expect_success) {
-          EXPECT_EQ(rc, 0);
+          AssertEQ(Update(id, pay_id), 0, "Update: RC");
         } else {
-          EXPECT_NE(rc, 0);
+          AssertNE(Update(id, pay_id), 0, "Update: RC");
         }
       }
     };
 
+    std::cout << "  [dbgroup] update...\n";
     RunMT(mt_worker);
   }
 
@@ -353,17 +489,20 @@ class IndexMultiThreadFixture : public testing::Test
       const bool expect_success,
       const AccessPattern pattern)
   {
+    if (!no_failure_.load(std::memory_order_relaxed)) return;
+
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
-        const auto rc = Delete(id);
+        if (!no_failure_.load(std::memory_order_relaxed)) break;
         if (expect_success) {
-          EXPECT_EQ(rc, 0);
+          AssertEQ(Delete(id), 0, "Delete: RC");
         } else {
-          EXPECT_NE(rc, 0);
+          AssertNE(Delete(id), 0, "Delete: RC");
         }
       }
     };
 
+    std::cout << "  [dbgroup] delete...\n";
     RunMT(mt_worker);
   }
 
@@ -371,6 +510,8 @@ class IndexMultiThreadFixture : public testing::Test
   VerifyBulkload()
   {
     if constexpr (HasBulkloadOperation<ImplStat>()) {
+      if (!no_failure_.load(std::memory_order_relaxed)) return;
+
       constexpr size_t kOpsNum = (kExecNum + 1) * kThreadNum;
       if constexpr (IsVarLen<Key>() || IsVarLen<Payload>()) {
         std::vector<std::tuple<Key, Payload, size_t, size_t>> entries{};
@@ -380,18 +521,14 @@ class IndexMultiThreadFixture : public testing::Test
           const auto &payload = payloads_.at(i % kThreadNum);
           entries.emplace_back(key, payload, GetLength(key), GetLength(payload));
         }
-
-        const auto rc = index_->Bulkload(entries, kThreadNum);
-        EXPECT_EQ(rc, 0);
+        AssertEQ(static_cast<int>(index_->Bulkload(entries, kThreadNum)), 0, "Bulkload: RC");
       } else {
         std::vector<std::pair<Key, Payload>> entries{};
         entries.reserve(kOpsNum);
         for (size_t i = kThreadNum; i < kOpsNum; ++i) {
           entries.emplace_back(keys_.at(i), payloads_.at(i % kThreadNum));
         }
-
-        const auto rc = index_->Bulkload(entries, kThreadNum);
-        EXPECT_EQ(rc, 0);
+        AssertEQ(static_cast<int>(index_->Bulkload(entries, kThreadNum)), 0, "Bulkload: RC");
       }
     }
   }
@@ -519,10 +656,11 @@ class IndexMultiThreadFixture : public testing::Test
 
     auto read_proc = [&]() -> void {
       for (const auto id : CreateTargetIDsForConcurrentSMOs()) {
+        if (!no_failure_.load(std::memory_order_relaxed)) break;
         const auto &key = keys_.at(id);
         const auto &read_val = index_->Read(key, GetLength(key));
         if (read_val) {
-          EXPECT_TRUE(IsEqual<PayComp>(payloads_.at(id % kReadThread), read_val.value()));
+          AssertEQ(payloads_.at(id % kReadThread), read_val.value(), "Read value");
         }
       }
     };
@@ -539,8 +677,9 @@ class IndexMultiThreadFixture : public testing::Test
           prev_key = keys_.at(0);
         }
         for (auto &&iter = index_->Scan(); iter; ++iter) {
+          if (!no_failure_.load(std::memory_order_relaxed)) break;
           const auto &[key, payload] = *iter;
-          EXPECT_TRUE(KeyComp{}(prev_key, key));
+          AssertLT(prev_key, key, "Scan key");
           if constexpr (IsVarLen<Key>()) {
             memcpy(prev_key, key, GetLength<Key>(key));
           } else {
@@ -555,14 +694,16 @@ class IndexMultiThreadFixture : public testing::Test
 
     auto write_proc = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, kRandom)) {
-        EXPECT_EQ(Write(id, w_id), 0);
+        if (!no_failure_.load(std::memory_order_relaxed)) break;
+        AssertEQ(Write(id, w_id), 0, "Write: RC");
       }
       counter += 1;
     };
 
     auto delete_proc = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, kRandom)) {
-        EXPECT_EQ(Delete(id), 0);
+        if (!no_failure_.load(std::memory_order_relaxed)) break;
+        AssertEQ(Delete(id), 0, "Delete: RC");
       }
       counter += 1;
     };
@@ -598,8 +739,11 @@ class IndexMultiThreadFixture : public testing::Test
     };
 
     PrepareData();
+    std::cout << "  [dbgroup] initialization...\n";
     RunMT(init_worker);
     for (size_t i = 0; i < kRepeatNum; ++i) {
+      if (!no_failure_.load(std::memory_order_relaxed)) break;
+      std::cout << "  [dbgroup] repeat #" << i << "...\n";
       counter = 0;
       RunMT(even_delete_worker);
       counter = 0;
@@ -627,6 +771,7 @@ class IndexMultiThreadFixture : public testing::Test
     auto expect_success = true;
     auto is_updated = false;
 
+    std::cout << "  [dbgroup] bulkload...\n";
     VerifyBulkload();
     switch (write_ops) {
       case kWrite:
@@ -658,6 +803,9 @@ class IndexMultiThreadFixture : public testing::Test
    * Internal member variables
    *##########################################################################*/
 
+  /// a flag for indicating that there is no assertion.
+  std::atomic_bool no_failure_{true};
+
   /// actual keys
   std::vector<Key> keys_{};
 
@@ -672,6 +820,9 @@ class IndexMultiThreadFixture : public testing::Test
 
   /// a shared mutex for blocking main process.
   std::shared_mutex s_mtx_{};
+
+  /// a mutex for outputting messages
+  std::mutex io_mtx_{};
 
   /// a flag for indicating ready.
   bool is_ready_{false};

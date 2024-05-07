@@ -19,13 +19,16 @@
 
 // C++ standard libraries
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <random>
 #include <tuple>
 #include <utility>
 #include <vector>
 
-// external sources
+// external libraries
 #include "gtest/gtest.h"
 
 // local sources
@@ -62,7 +65,8 @@ class IndexFixture : public testing::Test
   static constexpr size_t kRecNumWithoutSMOs = 30;
   static constexpr size_t kRecNumWithLeafSMOs = 1000;
   static constexpr size_t kRecNumWithInternalSMOs = 30000;
-  static constexpr size_t kKeyNum = kExecNum + 2;
+  static constexpr size_t kKeyNum =
+      (kExecNum < kRecNumWithInternalSMOs ? kRecNumWithInternalSMOs : kExecNum) + 2;
 
   /*############################################################################
    * Setup/Teardown
@@ -83,6 +87,22 @@ class IndexFixture : public testing::Test
   /*############################################################################
    * Utility functions
    *##########################################################################*/
+
+  template <class T>
+  void
+  AssertEQ(  //
+      const T &expected,
+      const T &actual,
+      const std::string_view &tag)
+  {
+    if constexpr (std::is_same_v<T, char *>) {
+      ASSERT_STREQ(expected, actual) << tag;
+    } else if constexpr (std::is_same_v<T, uint64_t *>) {
+      ASSERT_EQ(*expected, *actual) << tag;
+    } else {
+      ASSERT_EQ(expected, actual) << tag;
+    }
+  }
 
   void
   PrepareData()
@@ -105,11 +125,10 @@ class IndexFixture : public testing::Test
       -> std::vector<size_t>
   {
     std::mt19937_64 rand_engine{kRandomSeed};
-
     std::vector<size_t> target_ids{};
     target_ids.reserve(rec_num);
     if (pattern == kReverse) {
-      for (int64_t i = rec_num - 1; i >= 0; --i) {
+      for (int64_t i = static_cast<int64_t>(rec_num) - 1; i >= 0; --i) {
         target_ids.emplace_back(i);
       }
     } else {
@@ -117,11 +136,9 @@ class IndexFixture : public testing::Test
         target_ids.emplace_back(i);
       }
     }
-
     if (pattern == kRandom) {
       std::shuffle(target_ids.begin(), target_ids.end(), rand_engine);
     }
-
     return target_ids;
   }
 
@@ -200,20 +217,17 @@ class IndexFixture : public testing::Test
       const bool expect_success,
       const bool write_twice = false)
   {
+    std::cout << "  [dbgroup] read...\n";
     for (size_t i = 0; i < target_ids.size(); ++i) {
       const auto key_id = target_ids.at(i);
       const auto pay_id = (write_twice) ? key_id + 1 : key_id;
-
       const auto &key = keys_.at(key_id);
-      const auto read_val = index_->Read(key, GetLength(key));
+      const auto &read_val = index_->Read(key, GetLength(key));
       if (expect_success) {
-        EXPECT_TRUE(read_val);
-
-        const auto expected_val = payloads_.at(pay_id);
-        const auto actual_val = read_val.value();
-        EXPECT_TRUE(IsEqual<PayComp>(expected_val, actual_val));
+        ASSERT_TRUE(read_val);
+        AssertEQ(payloads_.at(pay_id), read_val.value(), "[Read: payload]");
       } else {
-        EXPECT_FALSE(read_val);
+        ASSERT_FALSE(read_val);
       }
     }
   }
@@ -226,7 +240,8 @@ class IndexFixture : public testing::Test
       [[maybe_unused]] const bool write_twice = false)
   {
     if constexpr (HasScanOperation<ImplStat>()) {
-      ScanKey begin_key = std::nullopt;
+      std::cout << "  [dbgroup] scan...\n";
+      ScanKey begin_key{std::nullopt};
       size_t begin_pos = 0;
       if (begin_ref) {
         auto &&[begin_id, begin_closed] = *begin_ref;
@@ -235,7 +250,7 @@ class IndexFixture : public testing::Test
         begin_pos = (begin_closed) ? begin_id : begin_id + 1;
       }
 
-      ScanKey end_key = std::nullopt;
+      ScanKey end_key{std::nullopt};
       size_t end_pos = 0;
       if (end_ref) {
         auto &&[end_id, end_closed] = *end_ref;
@@ -249,14 +264,14 @@ class IndexFixture : public testing::Test
         for (; iter; ++iter, ++begin_pos) {
           const auto &[key, payload] = *iter;
           const auto val_id = (write_twice) ? begin_pos + 1 : begin_pos;
-          EXPECT_TRUE(IsEqual<KeyComp>(keys_.at(begin_pos), key));
-          EXPECT_TRUE(IsEqual<PayComp>(payloads_.at(val_id), payload));
+          AssertEQ(keys_.at(begin_pos), key, "[Scan: key]");
+          AssertEQ(payloads_.at(val_id), payload, "[Scan: payload]");
         }
         if (end_ref) {
-          EXPECT_EQ(begin_pos, end_pos);
+          ASSERT_EQ(begin_pos, end_pos);
         }
       }
-      EXPECT_FALSE(iter);
+      ASSERT_FALSE(iter);
     }
   }
 
@@ -265,12 +280,11 @@ class IndexFixture : public testing::Test
       const std::vector<size_t> &target_ids,
       const bool write_twice = false)
   {
+    std::cout << "  [dbgroup] write...\n";
     for (size_t i = 0; i < target_ids.size(); ++i) {
       const auto key_id = target_ids.at(i);
       const auto pay_id = (write_twice) ? key_id + 1 : key_id;
-
-      const auto rc = Write(key_id, pay_id);
-      EXPECT_EQ(rc, 0);
+      ASSERT_EQ(Write(key_id, pay_id), 0);
     }
   }
 
@@ -280,15 +294,14 @@ class IndexFixture : public testing::Test
       const bool expect_success,
       const bool write_twice = false)
   {
+    std::cout << "  [dbgroup] insert...\n";
     for (size_t i = 0; i < target_ids.size(); ++i) {
       const auto key_id = target_ids.at(i);
       const auto pay_id = (write_twice) ? key_id + 1 : key_id;
-
-      const auto rc = Insert(key_id, pay_id);
       if (expect_success) {
-        EXPECT_EQ(rc, 0);
+        ASSERT_EQ(Insert(key_id, pay_id), 0);
       } else {
-        EXPECT_NE(rc, 0);
+        ASSERT_NE(Insert(key_id, pay_id), 0);
       }
     }
   }
@@ -298,15 +311,14 @@ class IndexFixture : public testing::Test
       const std::vector<size_t> &target_ids,
       const bool expect_success)
   {
+    std::cout << "  [dbgroup] update...\n";
     for (size_t i = 0; i < target_ids.size(); ++i) {
       const auto key_id = target_ids.at(i);
       const auto pay_id = key_id + 1;
-
-      const auto rc = Update(key_id, pay_id);
       if (expect_success) {
-        EXPECT_EQ(rc, 0);
+        ASSERT_EQ(Update(key_id, pay_id), 0);
       } else {
-        EXPECT_NE(rc, 0);
+        ASSERT_NE(Update(key_id, pay_id), 0);
       }
     }
   }
@@ -316,14 +328,13 @@ class IndexFixture : public testing::Test
       const std::vector<size_t> &target_ids,
       const bool expect_success)
   {
+    std::cout << "  [dbgroup] delete...\n";
     for (size_t i = 0; i < target_ids.size(); ++i) {
       const auto key_id = target_ids.at(i);
-
-      const auto rc = Delete(key_id);
       if (expect_success) {
-        EXPECT_EQ(rc, 0);
+        ASSERT_EQ(Delete(key_id), 0);
       } else {
-        EXPECT_NE(rc, 0);
+        ASSERT_NE(Delete(key_id), 0);
       }
     }
   }
@@ -340,18 +351,14 @@ class IndexFixture : public testing::Test
           const auto &payload = payloads_.at(i);
           entries.emplace_back(key, payload, GetLength(key), GetLength(payload));
         }
-
-        const auto rc = index_->Bulkload(entries, 1);
-        EXPECT_EQ(rc, 0);
+        ASSERT_EQ(index_->Bulkload(entries, 1), 0);
       } else {
         std::vector<std::pair<Key, Payload>> entries{};
         entries.reserve(kExecNum);
         for (size_t i = 0; i < kExecNum; ++i) {
           entries.emplace_back(keys_.at(i), payloads_.at(i));
         }
-
-        const auto rc = index_->Bulkload(entries, 1);
-        EXPECT_EQ(rc, 0);
+        ASSERT_EQ(index_->Bulkload(entries, 1), 0);
       }
     }
   }
@@ -373,7 +380,7 @@ class IndexFixture : public testing::Test
       const bool has_range,
       const bool closed = true)
   {
-    constexpr auto kRecNum = kRecNumWithInternalSMOs;
+    constexpr auto kRecNum = kExecNum;
 
     if (!HasScanOperation<ImplStat>()                                            //
         || (!HasWriteOperation<ImplStat>() && !HasInsertOperation<ImplStat>()))  //
@@ -390,6 +397,7 @@ class IndexFixture : public testing::Test
       end_key = std::make_pair(kRecNum - 1, closed);
     }
 
+    std::cout << "  [dbgroup] initialization...\n";
     FillIndex();
     VerifyScan(begin_key, end_key);
 
@@ -532,6 +540,7 @@ class IndexFixture : public testing::Test
     auto expect_success = true;
     auto is_updated = false;
 
+    std::cout << "  [dbgroup] bulkload...\n";
     VerifyBulkload();
     switch (write_ops) {
       case kWrite:

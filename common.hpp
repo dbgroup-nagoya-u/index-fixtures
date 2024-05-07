@@ -18,13 +18,16 @@
 #define DBGROUP_INDEX_FIXTURES_COMMON_HPP
 
 // C++ standard libraries
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <iostream>
 #include <type_traits>
 #include <vector>
+
+// external libraries
+#include "gtest/gtest.h"
 
 /*##############################################################################
  * Classes for testing
@@ -37,36 +40,60 @@
 class MyClass
 {
  public:
-  constexpr MyClass() : data_{}, control_bits_{0} {}
-  constexpr explicit MyClass(const uint64_t val) : data_{val}, control_bits_{0} {}
+  constexpr MyClass() : data{}, control_bits{0} {}
+
+  constexpr explicit MyClass(  //
+      const uint64_t val)
+      : data{val}, control_bits{0}
+  {
+  }
 
   ~MyClass() = default;
 
   constexpr MyClass(const MyClass &) = default;
   constexpr MyClass(MyClass &&) = default;
+
   constexpr auto operator=(const MyClass &) -> MyClass & = default;
   constexpr auto operator=(MyClass &&) -> MyClass & = default;
 
   constexpr auto
-  operator=(const uint64_t value)  //
+  operator=(                 //
+      const uint64_t value)  //
       -> MyClass &
   {
-    data_ = value;
+    data = value;
     return *this;
   }
 
-  // enable std::less to compare this class
   constexpr auto
-  operator<(const MyClass &comp) const  //
+  operator<(                      //
+      const MyClass &comp) const  //
       -> bool
   {
-    return data_ < comp.data_;
+    return data < comp.data;
   }
 
- private:
-  uint64_t data_ : 61;
-  uint64_t control_bits_ : 3;  // NOLINT
+  constexpr auto
+  operator==(                     //
+      const MyClass &comp) const  //
+      -> bool
+  {
+    return data == comp.data;
+  }
+
+  uint64_t data : 61;
+  uint64_t control_bits : 3;  // NOLINT
 };
+
+auto
+operator<<(  //
+    std::ostream &os,
+    const MyClass &obj)  //
+    -> std::ostream &
+{
+  os << obj.data;
+  return os;
+}
 
 namespace dbgroup::index::test
 {
@@ -130,6 +157,69 @@ struct VarData {
 };
 
 /*##############################################################################
+ * Type definitions for templated tests
+ *############################################################################*/
+
+struct UInt8 {
+  using Data = uint64_t;
+  using Comp = std::less<uint64_t>;
+};
+
+struct Int8 {
+  using Data = int64_t;
+  using Comp = std::less<int64_t>;
+};
+
+struct UInt4 {
+  using Data = uint32_t;
+  using Comp = std::less<uint32_t>;
+};
+
+struct Int4 {
+  using Data = int32_t;
+  using Comp = std::less<int32_t>;
+};
+
+struct Ptr {
+  using Data = uint64_t *;
+
+  struct Comp {
+    constexpr auto
+    operator()(  //
+        const uint64_t *a,
+        const uint64_t *b) const  //
+        -> bool
+    {
+      if (a == nullptr) return false;
+      if (b == nullptr) return true;
+      return *a < *b;
+    }
+  };
+};
+
+struct Var {
+  using Data = char *;
+
+  struct Comp {
+    constexpr auto
+    operator()(  //
+        const char *a,
+        const char *b) const noexcept  //
+        -> bool
+    {
+      if (a == nullptr) return false;
+      if (b == nullptr) return true;
+      return std::strcmp(a, b) < 0;
+    }
+  };
+};
+
+struct Original {
+  using Data = MyClass;
+  using Comp = std::less<MyClass>;
+};
+
+/*##############################################################################
  * Global utility functions
  *############################################################################*/
 
@@ -153,18 +243,19 @@ IsEqual(  //
 
 template <class T>
 auto
-GetLength(const T &data)  //
+GetLength(          //
+    const T &data)  //
     -> size_t
 {
   if constexpr (std::is_same_v<T, char *>) {
-    return strlen(data) + 1;
+    return std::strlen(data) + 1;
   } else {
     return sizeof(T);
   }
 }
 
 inline void
-CreateDummyString(  //
+CreateDummyString(  // NOLINT
     const size_t data_num,
     const size_t level,
     std::vector<char *> &data_vec,
@@ -190,7 +281,8 @@ CreateDummyString(  //
 
 template <class T>
 auto
-PrepareTestData(const size_t data_num)  //
+PrepareTestData(            //
+    const size_t data_num)  //
     -> std::vector<T>
 {
   std::vector<T> data_vec{};
@@ -199,7 +291,7 @@ PrepareTestData(const size_t data_num)  //
   if constexpr (std::is_same_v<T, char *>) {
     auto *var_arr = new VarData[data_num];
     VarData base{};
-    memset(base.data, '0', kVarDataLength);
+    std::memset(base.data, '0', kVarDataLength);
 
     size_t count = 0;
     CreateDummyString(data_num, 0, data_vec, var_arr, count, base);
@@ -220,7 +312,8 @@ PrepareTestData(const size_t data_num)  //
 
 template <class T>
 void
-ReleaseTestData([[maybe_unused]] std::vector<T> &data_vec)
+ReleaseTestData(  //
+    [[maybe_unused]] std::vector<T> &data_vec)
 {
   if constexpr (std::is_same_v<T, char *>) {
     delete[] reinterpret_cast<VarData *>(data_vec.front());
@@ -234,11 +327,7 @@ constexpr auto
 IsVarLen()  //
     -> bool
 {
-  if constexpr (std::is_same_v<T, char *>) {
-    return true;
-  } else {
-    return false;
-  }
+  return std::is_same_v<T, char *>;
 }
 
 /*##############################################################################
@@ -292,63 +381,6 @@ HasBulkloadOperation()  //
 {
   return true;
 }
-
-/*##############################################################################
- * Type definitions for templated tests
- *############################################################################*/
-
-struct UInt8 {
-  using Data = uint64_t;
-  using Comp = std::less<uint64_t>;
-};
-
-struct Int8 {
-  using Data = int64_t;
-  using Comp = std::less<int64_t>;
-};
-
-struct UInt4 {
-  using Data = uint32_t;
-  using Comp = std::less<uint32_t>;
-};
-
-struct Int4 {
-  using Data = int32_t;
-  using Comp = std::less<int32_t>;
-};
-
-struct Ptr {
-  using Data = uint64_t *;
-
-  struct Comp {
-    constexpr auto
-    operator()(const uint64_t *a, const uint64_t *b) const  //
-        -> bool
-    {
-      return *a < *b;
-    }
-  };
-};
-
-struct Var {
-  using Data = char *;
-
-  struct Comp {
-    constexpr auto
-    operator()(const char *a, const char *b) const noexcept  //
-        -> bool
-    {
-      if (a == nullptr) return false;
-      if (b == nullptr) return true;
-      return strcmp(a, b) < 0;
-    }
-  };
-};
-
-struct Original {
-  using Data = MyClass;
-  using Comp = std::less<MyClass>;
-};
 
 }  // namespace dbgroup::index::test
 
