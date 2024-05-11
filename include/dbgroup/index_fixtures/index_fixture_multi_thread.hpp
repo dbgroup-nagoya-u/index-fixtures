@@ -121,24 +121,24 @@ class IndexMultiThreadFixture : public testing::Test
   template <class T>
   void
   AssertEQ(  //
-      const T &expected,
       const T &actual,
+      const T &expected,
       const std::string_view &tag)
   {
     bool is_equal;
     if constexpr (std::is_same_v<T, char *>) {
-      is_equal = std::strcmp(expected, actual) == 0;
+      is_equal = std::strcmp(actual, expected) == 0;
     } else if constexpr (std::is_same_v<T, uint64_t *>) {
-      is_equal = *expected == *actual;
+      is_equal = *actual == *expected;
     } else {
-      is_equal = expected == actual;
+      is_equal = actual == expected;
     }
 
     if (!is_equal) {
       const std::lock_guard lock{io_mtx_};
       std::cout << "  [" << tag << "] The actual value was different from the expected one.\n"
-                << "    expected: " << expected << "\n"
-                << "    actual  : " << actual << "\n";
+                << "    actual:   " << actual << "\n"
+                << "    expected: " << expected << "\n";
       throw std::runtime_error{""};
     }
   }
@@ -146,24 +146,24 @@ class IndexMultiThreadFixture : public testing::Test
   template <class T>
   void
   AssertNE(  //
-      const T &expected,
       const T &actual,
+      const T &expected,
       const std::string_view &tag)
   {
     bool is_not_equal;
     if constexpr (std::is_same_v<T, char *>) {
-      is_not_equal = std::strcmp(expected, actual) != 0;
+      is_not_equal = std::strcmp(actual, expected) != 0;
     } else if constexpr (std::is_same_v<T, uint64_t *>) {
-      is_not_equal = *expected != *actual;
+      is_not_equal = *actual != *expected;
     } else {
-      is_not_equal = expected != actual;
+      is_not_equal = actual != expected;
     }
 
     if (!is_not_equal) {
       const std::lock_guard lock{io_mtx_};
       std::cout << "  [" << tag << "] The actual value was equal to the expected one.\n"
-                << "    expected: " << expected << "\n"
-                << "    actual  : " << actual << "\n";
+                << "    actual:   " << actual << "\n"
+                << "    expected: " << expected << "\n";
       throw std::runtime_error{""};
     }
   }
