@@ -224,10 +224,12 @@ class IndexFixture : public testing::Test
       const auto &key = keys_.at(key_id);
       const auto &read_val = index_->Read(key, GetLength(key));
       if (expect_success) {
-        ASSERT_TRUE(read_val);
-        AssertEQ(payloads_.at(pay_id), read_val.value(), "[Read: payload]");
+        ASSERT_TRUE(read_val) << "[Read: payload]";
+        if (read_val) {
+          AssertEQ(payloads_.at(pay_id), read_val.value(), "[Read: payload]");
+        }
       } else {
-        ASSERT_FALSE(read_val);
+        ASSERT_FALSE(read_val) << "[Read: payload]";
       }
     }
   }
@@ -268,10 +270,10 @@ class IndexFixture : public testing::Test
           AssertEQ(payloads_.at(val_id), payload, "[Scan: payload]");
         }
         if (end_ref) {
-          ASSERT_EQ(begin_pos, end_pos);
+          ASSERT_EQ(begin_pos, end_pos) << "[Scan: iterator]";
         }
       }
-      ASSERT_FALSE(iter);
+      ASSERT_FALSE(iter) << "[Scan: iterator]";
     }
   }
 
@@ -284,7 +286,7 @@ class IndexFixture : public testing::Test
     for (size_t i = 0; i < target_ids.size(); ++i) {
       const auto key_id = target_ids.at(i);
       const auto pay_id = (write_twice) ? key_id + 1 : key_id;
-      ASSERT_EQ(Write(key_id, pay_id), 0);
+      ASSERT_EQ(Write(key_id, pay_id), 0) << "[Write: RC]";
     }
   }
 
@@ -299,9 +301,9 @@ class IndexFixture : public testing::Test
       const auto key_id = target_ids.at(i);
       const auto pay_id = (write_twice) ? key_id + 1 : key_id;
       if (expect_success) {
-        ASSERT_EQ(Insert(key_id, pay_id), 0);
+        ASSERT_EQ(Insert(key_id, pay_id), 0) << "[Insert: RC]";
       } else {
-        ASSERT_NE(Insert(key_id, pay_id), 0);
+        ASSERT_NE(Insert(key_id, pay_id), 0) << "[Insert: RC]";
       }
     }
   }
@@ -316,9 +318,9 @@ class IndexFixture : public testing::Test
       const auto key_id = target_ids.at(i);
       const auto pay_id = key_id + 1;
       if (expect_success) {
-        ASSERT_EQ(Update(key_id, pay_id), 0);
+        ASSERT_EQ(Update(key_id, pay_id), 0) << "[Update: RC]";
       } else {
-        ASSERT_NE(Update(key_id, pay_id), 0);
+        ASSERT_NE(Update(key_id, pay_id), 0) << "[Update: RC]";
       }
     }
   }
@@ -332,9 +334,9 @@ class IndexFixture : public testing::Test
     for (size_t i = 0; i < target_ids.size(); ++i) {
       const auto key_id = target_ids.at(i);
       if (expect_success) {
-        ASSERT_EQ(Delete(key_id), 0);
+        ASSERT_EQ(Delete(key_id), 0) << "[Delete: RC]";
       } else {
-        ASSERT_NE(Delete(key_id), 0);
+        ASSERT_NE(Delete(key_id), 0) << "[Delete: RC]";
       }
     }
   }
@@ -351,14 +353,14 @@ class IndexFixture : public testing::Test
           const auto &payload = payloads_.at(i);
           entries.emplace_back(key, payload, GetLength(key), GetLength(payload));
         }
-        ASSERT_EQ(index_->Bulkload(entries, 1), 0);
+        ASSERT_EQ(index_->Bulkload(entries, 1), 0) << "[Bulkload: RC]";
       } else {
         std::vector<std::pair<Key, Payload>> entries{};
         entries.reserve(kExecNum);
         for (size_t i = 0; i < kExecNum; ++i) {
           entries.emplace_back(keys_.at(i), payloads_.at(i));
         }
-        ASSERT_EQ(index_->Bulkload(entries, 1), 0);
+        ASSERT_EQ(index_->Bulkload(entries, 1), 0) << "[Bulkload: RC]";
       }
     }
   }
