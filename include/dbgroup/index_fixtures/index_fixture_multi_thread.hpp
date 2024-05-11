@@ -102,7 +102,11 @@ class IndexMultiThreadFixture : public testing::Test
     if (!expect_true) {
       const std::lock_guard lock{io_mtx_};
       std::cout << "  [" << tag << "] The actual value was not true.\n";
+#ifdef NDEBUG
       throw std::runtime_error{""};
+#else
+      FAIL();
+#endif
     }
   }
 
@@ -114,7 +118,11 @@ class IndexMultiThreadFixture : public testing::Test
     if (expect_false) {
       const std::lock_guard lock{io_mtx_};
       std::cout << "  [" << tag << "] The actual value was not false.\n";
+#ifdef NDEBUG
       throw std::runtime_error{""};
+#else
+      FAIL();
+#endif
     }
   }
 
@@ -139,7 +147,11 @@ class IndexMultiThreadFixture : public testing::Test
       std::cout << "  [" << tag << "] The actual value was different from the expected one.\n"
                 << "    actual:   " << actual << "\n"
                 << "    expected: " << expected << "\n";
+#ifdef NDEBUG
       throw std::runtime_error{""};
+#else
+      FAIL();
+#endif
     }
   }
 
@@ -164,7 +176,11 @@ class IndexMultiThreadFixture : public testing::Test
       std::cout << "  [" << tag << "] The actual value was equal to the expected one.\n"
                 << "    actual:   " << actual << "\n"
                 << "    expected: " << expected << "\n";
+#ifdef NDEBUG
       throw std::runtime_error{""};
+#else
+      FAIL();
+#endif
     }
   }
 
@@ -190,7 +206,11 @@ class IndexMultiThreadFixture : public testing::Test
                 << "] The left-hand side value was larger the right-hand side one.\n"
                 << "    lhs: " << lhs << "\n"
                 << "    rhs: " << rhs << "\n";
+#ifdef NDEBUG
       throw std::runtime_error{""};
+#else
+      FAIL();
+#endif
     }
   }
 
