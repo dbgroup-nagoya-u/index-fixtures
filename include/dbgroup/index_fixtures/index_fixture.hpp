@@ -426,11 +426,19 @@ class IndexFixture : public testing::Test
     const auto &end_ref = std::make_pair(ops_num, kRangeOpened);
 
     VerifyWrite(target_ids);
-    if (with_delete) VerifyDelete(target_ids, kExpectSuccess);
-    if (write_twice) VerifyWrite(target_ids, kWriteTwice);
-    VerifyRead(target_ids, !with_delete || write_twice, write_twice);
-    VerifyScan(begin_ref, end_ref, kExpectSuccess, write_twice);
+    if (HasFatalFailure()) goto END_TEST;
 
+    if (with_delete) VerifyDelete(target_ids, kExpectSuccess);
+    if (HasFatalFailure()) goto END_TEST;
+
+    if (write_twice) VerifyWrite(target_ids, kWriteTwice);
+    if (HasFatalFailure()) goto END_TEST;
+
+    VerifyRead(target_ids, !with_delete || write_twice, write_twice);
+    if (HasFatalFailure()) goto END_TEST;
+
+    VerifyScan(begin_ref, end_ref, kExpectSuccess, write_twice);
+  END_TEST:
     DestroyData();
   }
 
@@ -455,11 +463,19 @@ class IndexFixture : public testing::Test
     const bool is_updated = write_twice && with_delete;
 
     VerifyInsert(target_ids, kExpectSuccess);
-    if (with_delete) VerifyDelete(target_ids, kExpectSuccess);
-    if (write_twice) VerifyInsert(target_ids, with_delete, kWriteTwice);
-    VerifyRead(target_ids, expect_success, is_updated);
-    VerifyScan(begin_ref, end_ref, expect_success, is_updated);
+    if (HasFatalFailure()) goto END_TEST;
 
+    if (with_delete) VerifyDelete(target_ids, kExpectSuccess);
+    if (HasFatalFailure()) goto END_TEST;
+
+    if (write_twice) VerifyInsert(target_ids, with_delete, kWriteTwice);
+    if (HasFatalFailure()) goto END_TEST;
+
+    VerifyRead(target_ids, expect_success, is_updated);
+    if (HasFatalFailure()) goto END_TEST;
+
+    VerifyScan(begin_ref, end_ref, expect_success, is_updated);
+  END_TEST:
     DestroyData();
   }
 
@@ -484,11 +500,19 @@ class IndexFixture : public testing::Test
     const auto expect_update = with_write && !with_delete;
 
     if (with_write) VerifyWrite(target_ids);
-    if (with_delete) VerifyDelete(target_ids, with_write);
-    VerifyUpdate(target_ids, expect_update);
-    VerifyRead(target_ids, expect_update, kWriteTwice);
-    VerifyScan(begin_ref, end_ref, expect_update, kWriteTwice);
+    if (HasFatalFailure()) goto END_TEST;
 
+    if (with_delete) VerifyDelete(target_ids, with_write);
+    if (HasFatalFailure()) goto END_TEST;
+
+    VerifyUpdate(target_ids, expect_update);
+    if (HasFatalFailure()) goto END_TEST;
+
+    VerifyRead(target_ids, expect_update, kWriteTwice);
+    if (HasFatalFailure()) goto END_TEST;
+
+    VerifyScan(begin_ref, end_ref, expect_update, kWriteTwice);
+  END_TEST:
     DestroyData();
   }
 
@@ -512,11 +536,19 @@ class IndexFixture : public testing::Test
     const auto expect_delete = with_write && !with_delete;
 
     if (with_write) VerifyWrite(target_ids);
-    if (with_delete) VerifyDelete(target_ids, with_write);
-    VerifyDelete(target_ids, expect_delete);
-    VerifyRead(target_ids, kExpectFailed);
-    VerifyScan(begin_ref, end_ref, kExpectFailed);
+    if (HasFatalFailure()) goto END_TEST;
 
+    if (with_delete) VerifyDelete(target_ids, with_write);
+    if (HasFatalFailure()) goto END_TEST;
+
+    VerifyDelete(target_ids, expect_delete);
+    if (HasFatalFailure()) goto END_TEST;
+
+    VerifyRead(target_ids, kExpectFailed);
+    if (HasFatalFailure()) goto END_TEST;
+
+    VerifyScan(begin_ref, end_ref, kExpectFailed);
+  END_TEST:
     DestroyData();
   }
 
@@ -544,6 +576,8 @@ class IndexFixture : public testing::Test
 
     std::cout << "  [dbgroup] bulkload...\n";
     VerifyBulkload();
+    if (HasFatalFailure()) goto END_TEST;
+
     switch (write_ops) {
       case kWrite:
         VerifyWrite(target_ids, kWriteTwice);
@@ -564,9 +598,13 @@ class IndexFixture : public testing::Test
       default:
         break;
     }
-    VerifyRead(target_ids, expect_success, is_updated);
-    VerifyScan(begin_ref, end_ref, expect_success, is_updated);
+    if (HasFatalFailure()) goto END_TEST;
 
+    VerifyRead(target_ids, expect_success, is_updated);
+    if (HasFatalFailure()) goto END_TEST;
+
+    VerifyScan(begin_ref, end_ref, expect_success, is_updated);
+  END_TEST:
     DestroyData();
   }
 
