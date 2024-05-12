@@ -231,6 +231,7 @@ class IndexFixture : public testing::Test
       } else {
         ASSERT_FALSE(read_val) << "[Read: payload]";
       }
+      if (HasFatalFailure()) return;
     }
   }
 
@@ -268,6 +269,7 @@ class IndexFixture : public testing::Test
           const auto val_id = (write_twice) ? begin_pos + 1 : begin_pos;
           AssertEQ(keys_.at(begin_pos), key, "[Scan: key]");
           AssertEQ(payloads_.at(val_id), payload, "[Scan: payload]");
+          if (HasFatalFailure()) return;
         }
         if (end_ref) {
           ASSERT_EQ(begin_pos, end_pos) << "[Scan: iterator]";
