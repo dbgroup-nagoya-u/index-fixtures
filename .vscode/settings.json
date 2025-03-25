@@ -53,8 +53,14 @@
   "markdown.extension.toc.levels": "2..3",
   // local dictionary
   "cSpell.words": [
+    "Bulkload",
+    "DBGROUP",
+    "endfunction",
+    "googletest",
     "GTEST",
-    "STREQ"
+    "STREQ",
+    "STREQUAL",
+    "Wextra"
   ],
   "files.associations": {
     "array": "cpp",

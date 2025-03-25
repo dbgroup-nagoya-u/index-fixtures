@@ -331,7 +331,7 @@ IsVarLen()  //
 }
 
 /*##############################################################################
- * Template functions for disbling tests of each operation
+ * Template functions for disabling tests of each operation
  *############################################################################*/
 
 template <class ImplStat>
