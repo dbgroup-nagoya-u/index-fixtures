@@ -86,43 +86,43 @@ constexpr bool kWithWrite = true;
 
 constexpr bool kWithDelete = true;
 
-#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_READ_TEST
+#ifdef DBGROUP_TEST_DISABLE_READ_TEST
 constexpr bool kDisableReadTest = true;
 #else
 constexpr bool kDisableReadTest = false;
 #endif
 
-#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_SCAN_TEST
+#ifdef DBGROUP_TEST_DISABLE_SCAN_TEST
 constexpr bool kDisableScanTest = true;
 #else
 constexpr bool kDisableScanTest = false;
 #endif
 
-#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_WRITE_TEST
+#ifdef DBGROUP_TEST_DISABLE_WRITE_TEST
 constexpr bool kDisableWriteTest = true;
 #else
 constexpr bool kDisableWriteTest = false;
 #endif
 
-#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_INSERT_TEST
+#ifdef DBGROUP_TEST_DISABLE_INSERT_TEST
 constexpr bool kDisableInsertTest = true;
 #else
 constexpr bool kDisableInsertTest = false;
 #endif
 
-#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_UPDATE_TEST
+#ifdef DBGROUP_TEST_DISABLE_UPDATE_TEST
 constexpr bool kDisableUpdateTest = true;
 #else
 constexpr bool kDisableUpdateTest = false;
 #endif
 
-#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_DELETE_TEST
+#ifdef DBGROUP_TEST_DISABLE_DELETE_TEST
 constexpr bool kDisableDeleteTest = true;
 #else
 constexpr bool kDisableDeleteTest = false;
 #endif
 
-#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_BULKLOAD_TEST
+#ifdef DBGROUP_TEST_DISABLE_BULKLOAD_TEST
 constexpr bool kDisableBulkloadTest = true;
 #else
 constexpr bool kDisableBulkloadTest = false;
