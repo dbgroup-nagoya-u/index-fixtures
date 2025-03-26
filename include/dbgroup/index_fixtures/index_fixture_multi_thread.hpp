@@ -79,7 +79,6 @@ class IndexMultiThreadFixture : public testing::Test
   void
   SetUp() override
   {
-    index_ = std::make_unique<Index_t>();
     is_ready_ = false;
     no_failure_ = true;
   }
@@ -217,6 +216,7 @@ class IndexMultiThreadFixture : public testing::Test
   void
   PrepareData()
   {
+    index_ = std::make_unique<Index_t>();
     keys_ = PrepareTestData<Key>(kKeyNum);
     payloads_ = PrepareTestData<Payload>(kThreadNum * 2);
   }
@@ -226,6 +226,31 @@ class IndexMultiThreadFixture : public testing::Test
   {
     ReleaseTestData(keys_);
     ReleaseTestData(payloads_);
+  }
+
+  auto
+  Read(                                      //
+      [[maybe_unused]] const size_t key_id)  //
+      -> std::optional<Payload>
+  {
+    if constexpr (HasReadOperation<ImplStat>()) {
+      const auto &key = keys_.at(key_id);
+      return index_->Read(key, GetLength(key));
+    } else {
+      return std::nullopt;
+    }
+  }
+
+  auto
+  Scan(  //
+      [[maybe_unused]] const ScanKey &begin_key = std::nullopt,
+      [[maybe_unused]] const ScanKey &end_key = std::nullopt)
+  {
+    if constexpr (HasScanOperation<ImplStat>()) {
+      return index_->Scan(begin_key, end_key);
+    } else {
+      return DummyIter<Key, Payload>{};
+    }
   }
 
   auto
@@ -277,6 +302,24 @@ class IndexMultiThreadFixture : public testing::Test
     if constexpr (HasDeleteOperation<ImplStat>()) {
       const auto &key = keys_.at(key_id);
       return static_cast<int>(index_->Delete(key, GetLength(key)));
+    } else {
+      return 0;
+    }
+  }
+
+  auto
+  Bulkload()
+  {
+    if constexpr (HasBulkloadOperation<ImplStat>()) {
+      constexpr size_t kOpsNum = (kExecNum + 1) * kThreadNum;
+      std::vector<std::tuple<Key, Payload, size_t, size_t>> entries{};
+      entries.reserve(kOpsNum);
+      for (size_t i = kThreadNum; i < kOpsNum; ++i) {
+        const auto &key = keys_.at(i);
+        const auto &payload = payloads_.at(i % kThreadNum);
+        entries.emplace_back(key, payload, GetLength(key), GetLength(payload));
+      }
+      return index_->Bulkload(entries, kThreadNum);
     } else {
       return 0;
     }
@@ -377,13 +420,16 @@ class IndexMultiThreadFixture : public testing::Test
       const bool is_update,
       const AccessPattern pattern)
   {
+    if constexpr (!HasReadOperation<ImplStat>()) {
+      return;
+    }
+
     if (!no_failure_.load(std::memory_order_relaxed)) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
         if (!no_failure_.load(std::memory_order_relaxed)) break;
-        const auto &key = keys_.at(id);
-        const auto &read_val = index_->Read(key, GetLength(key));
+        const auto &read_val = Read(id);
         if (expect_success) {
           AssertTrue(static_cast<bool>(read_val), "Read: RC");
           if (read_val) {
@@ -405,37 +451,38 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const bool expect_success,
       [[maybe_unused]] const bool is_update)
   {
-    if constexpr (HasScanOperation<ImplStat>()) {
-      if (!no_failure_.load(std::memory_order_relaxed)) return;
-
-      auto mt_worker = [&](const size_t w_id) -> void {
-        size_t begin_id = kThreadNum + kExecNum * w_id;
-        const auto &begin_k = keys_.at(begin_id);
-        const auto &begin_key = std::make_tuple(begin_k, GetLength(begin_k), kRangeClosed);
-
-        size_t end_id = kExecNum * (w_id + 1);
-        const auto &end_k = keys_.at(end_id);
-        const auto &end_key = std::make_tuple(end_k, GetLength(end_k), kRangeOpened);
-
-        auto &&iter = index_->Scan(begin_key, end_key);
-        if (expect_success) {
-          for (; iter; ++iter, ++begin_id) {
-            if (!no_failure_.load(std::memory_order_relaxed)) break;
-            const auto key_id = begin_id;
-            const auto val_id =
-                (is_update) ? key_id % kThreadNum + kThreadNum : key_id % kThreadNum;
-            const auto &[key, payload] = *iter;
-            AssertEQ(keys_.at(key_id), key, "Scan: key");
-            AssertEQ(payloads_.at(val_id), payload, "Scan: payload");
-          }
-          AssertEQ(begin_id, end_id, "Scan: # of records");
-        }
-        AssertFalse(static_cast<bool>(iter), "Scan: iterator reach end");
-      };
-
-      std::cout << "  [dbgroup] scan...\n";
-      RunMT(mt_worker);
+    if constexpr (!HasScanOperation<ImplStat>()) {
+      return;
     }
+
+    if (!no_failure_.load(std::memory_order_relaxed)) return;
+
+    auto mt_worker = [&](const size_t w_id) -> void {
+      size_t begin_id = kThreadNum + kExecNum * w_id;
+      const auto &begin_k = keys_.at(begin_id);
+      const auto &begin_key = std::make_tuple(begin_k, GetLength(begin_k), kRangeClosed);
+
+      size_t end_id = kExecNum * (w_id + 1);
+      const auto &end_k = keys_.at(end_id);
+      const auto &end_key = std::make_tuple(end_k, GetLength(end_k), kRangeOpened);
+
+      auto &&iter = Scan(begin_key, end_key);
+      if (expect_success) {
+        for (; iter; ++iter, ++begin_id) {
+          if (!no_failure_.load(std::memory_order_relaxed)) break;
+          const auto key_id = begin_id;
+          const auto val_id = (is_update) ? key_id % kThreadNum + kThreadNum : key_id % kThreadNum;
+          const auto &[key, payload] = *iter;
+          AssertEQ(keys_.at(key_id), key, "Scan: key");
+          AssertEQ(payloads_.at(val_id), payload, "Scan: payload");
+        }
+        AssertEQ(begin_id, end_id, "Scan: # of records");
+      }
+      AssertFalse(static_cast<bool>(iter), "Scan: iterator reach end");
+    };
+
+    std::cout << "  [dbgroup] scan...\n";
+    RunMT(mt_worker);
   }
 
   void
@@ -529,28 +576,9 @@ class IndexMultiThreadFixture : public testing::Test
   void
   VerifyBulkload()
   {
-    if constexpr (HasBulkloadOperation<ImplStat>()) {
-      if (!no_failure_.load(std::memory_order_relaxed)) return;
+    if (!no_failure_.load(std::memory_order_relaxed)) return;
 
-      constexpr size_t kOpsNum = (kExecNum + 1) * kThreadNum;
-      if constexpr (IsVarLen<Key>() || IsVarLen<Payload>()) {
-        std::vector<std::tuple<Key, Payload, size_t, size_t>> entries{};
-        entries.reserve(kOpsNum);
-        for (size_t i = kThreadNum; i < kOpsNum; ++i) {
-          const auto &key = keys_.at(i);
-          const auto &payload = payloads_.at(i % kThreadNum);
-          entries.emplace_back(key, payload, GetLength(key), GetLength(payload));
-        }
-        AssertEQ(static_cast<int>(index_->Bulkload(entries, kThreadNum)), 0, "Bulkload: RC");
-      } else {
-        std::vector<std::pair<Key, Payload>> entries{};
-        entries.reserve(kOpsNum);
-        for (size_t i = kThreadNum; i < kOpsNum; ++i) {
-          entries.emplace_back(keys_.at(i), payloads_.at(i % kThreadNum));
-        }
-        AssertEQ(static_cast<int>(index_->Bulkload(entries, kThreadNum)), 0, "Bulkload: RC");
-      }
-    }
+    AssertEQ(static_cast<int>(Bulkload()), 0, "Bulkload: RC");
   }
 
   /*############################################################################
@@ -677,8 +705,7 @@ class IndexMultiThreadFixture : public testing::Test
     auto read_proc = [&]() -> void {
       for (const auto id : CreateTargetIDsForConcurrentSMOs()) {
         if (!no_failure_.load(std::memory_order_relaxed)) break;
-        const auto &key = keys_.at(id);
-        const auto &read_val = index_->Read(key, GetLength(key));
+        const auto &read_val = Read(id);
         if (read_val) {
           AssertEQ(payloads_.at(id % kReadThread), read_val.value(), "Read value");
         }
@@ -696,7 +723,7 @@ class IndexMultiThreadFixture : public testing::Test
         } else {
           prev_key = keys_.at(0);
         }
-        for (auto &&iter = index_->Scan(); iter; ++iter) {
+        for (auto &&iter = Scan(); iter; ++iter) {
           if (!no_failure_.load(std::memory_order_relaxed)) break;
           const auto &[key, payload] = *iter;
           AssertLT(prev_key, key, "Scan key");

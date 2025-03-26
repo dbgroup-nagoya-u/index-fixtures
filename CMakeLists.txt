@@ -14,6 +14,9 @@ project(
 )
 
 if(NOT TARGET dbgroup::${PROJECT_NAME})
+  # enable features
+  include(FetchContent)
+
   #----------------------------------------------------------------------------#
   # Build options
   #----------------------------------------------------------------------------#
@@ -44,7 +47,6 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
   find_package(Threads)
 
   # use GTest
-  include(FetchContent)
   FetchContent_Declare(
     googletest
     GIT_REPOSITORY "https://github.com/google/googletest.git"
@@ -78,7 +80,7 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
   # Build unit tests
   #----------------------------------------------------------------------------#
 
-  option(DBGROUP_INDEX_FIXTURES_BUILD_TESTS "Build unit tests for BzTree" OFF)
+  option(DBGROUP_INDEX_FIXTURES_BUILD_TESTS "Build unit tests" OFF)
   if(${DBGROUP_INDEX_FIXTURES_BUILD_TESTS})
     enable_testing()
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/test")

@@ -75,7 +75,6 @@ class IndexFixture : public testing::Test
   void
   SetUp() override
   {
-    index_ = std::make_unique<Index_t>();
   }
 
   void
@@ -107,6 +106,7 @@ class IndexFixture : public testing::Test
   void
   PrepareData()
   {
+    index_ = std::make_unique<Index_t>();
     keys_ = PrepareTestData<Key>(kKeyNum);
     payloads_ = PrepareTestData<Payload>(kKeyNum);
   }
@@ -140,6 +140,31 @@ class IndexFixture : public testing::Test
       std::shuffle(target_ids.begin(), target_ids.end(), rand_engine);
     }
     return target_ids;
+  }
+
+  auto
+  Read(                                      //
+      [[maybe_unused]] const size_t key_id)  //
+      -> std::optional<Payload>
+  {
+    if constexpr (HasReadOperation<ImplStat>()) {
+      const auto &key = keys_.at(key_id);
+      return index_->Read(key, GetLength(key));
+    } else {
+      return std::nullopt;
+    }
+  }
+
+  auto
+  Scan(  //
+      [[maybe_unused]] const ScanKey &begin_key = std::nullopt,
+      [[maybe_unused]] const ScanKey &end_key = std::nullopt)
+  {
+    if constexpr (HasScanOperation<ImplStat>()) {
+      return index_->Scan(begin_key, end_key);
+    } else {
+      return DummyIter<Key, Payload>{};
+    }
   }
 
   auto
@@ -195,6 +220,23 @@ class IndexFixture : public testing::Test
     }
   }
 
+  auto
+  Bulkload()
+  {
+    if constexpr (HasBulkloadOperation<ImplStat>()) {
+      std::vector<std::tuple<Key, Payload, size_t, size_t>> entries{};
+      entries.reserve(kExecNum);
+      for (size_t i = 0; i < kExecNum; ++i) {
+        const auto &key = keys_.at(i);
+        const auto &payload = payloads_.at(i);
+        entries.emplace_back(key, payload, GetLength(key), GetLength(payload));
+      }
+      return index_->Bulkload(entries, 1);
+    } else {
+      return 0;
+    }
+  }
+
   void
   FillIndex()
   {
@@ -217,12 +259,15 @@ class IndexFixture : public testing::Test
       const bool expect_success,
       const bool write_twice = false)
   {
+    if constexpr (!HasReadOperation<ImplStat>()) {
+      return;
+    }
+
     std::cout << "  [dbgroup] read...\n";
     for (size_t i = 0; i < target_ids.size(); ++i) {
       const auto key_id = target_ids.at(i);
       const auto pay_id = (write_twice) ? key_id + 1 : key_id;
-      const auto &key = keys_.at(key_id);
-      const auto &read_val = index_->Read(key, GetLength(key));
+      const auto &read_val = Read(key_id);
       if (expect_success) {
         ASSERT_TRUE(read_val) << "[Read: payload]";
         if (read_val) {
@@ -242,41 +287,43 @@ class IndexFixture : public testing::Test
       [[maybe_unused]] const bool expect_success = true,
       [[maybe_unused]] const bool write_twice = false)
   {
-    if constexpr (HasScanOperation<ImplStat>()) {
-      std::cout << "  [dbgroup] scan...\n";
-      ScanKey begin_key{std::nullopt};
-      size_t begin_pos = 0;
-      if (begin_ref) {
-        auto &&[begin_id, begin_closed] = *begin_ref;
-        const auto &key = keys_.at(begin_id);
-        begin_key.emplace(key, GetLength(key), begin_closed);
-        begin_pos = (begin_closed) ? begin_id : begin_id + 1;
-      }
-
-      ScanKey end_key{std::nullopt};
-      size_t end_pos = 0;
-      if (end_ref) {
-        auto &&[end_id, end_closed] = *end_ref;
-        const auto &key = keys_.at(end_id);
-        end_key.emplace(key, GetLength(key), end_closed);
-        end_pos = (end_closed) ? end_id + 1 : end_id;
-      }
-
-      auto &&iter = index_->Scan(begin_key, end_key);
-      if (expect_success) {
-        for (; iter; ++iter, ++begin_pos) {
-          const auto &[key, payload] = *iter;
-          const auto val_id = (write_twice) ? begin_pos + 1 : begin_pos;
-          AssertEQ(keys_.at(begin_pos), key, "[Scan: key]");
-          AssertEQ(payloads_.at(val_id), payload, "[Scan: payload]");
-          if (HasFatalFailure()) return;
-        }
-        if (end_ref) {
-          ASSERT_EQ(begin_pos, end_pos) << "[Scan: iterator]";
-        }
-      }
-      ASSERT_FALSE(iter) << "[Scan: iterator]";
+    if constexpr (!HasScanOperation<ImplStat>()) {
+      return;
     }
+
+    std::cout << "  [dbgroup] scan...\n";
+    ScanKey begin_key{std::nullopt};
+    size_t begin_pos = 0;
+    if (begin_ref) {
+      auto &&[begin_id, begin_closed] = *begin_ref;
+      const auto &key = keys_.at(begin_id);
+      begin_key.emplace(key, GetLength(key), begin_closed);
+      begin_pos = (begin_closed) ? begin_id : begin_id + 1;
+    }
+
+    ScanKey end_key{std::nullopt};
+    size_t end_pos = 0;
+    if (end_ref) {
+      auto &&[end_id, end_closed] = *end_ref;
+      const auto &key = keys_.at(end_id);
+      end_key.emplace(key, GetLength(key), end_closed);
+      end_pos = (end_closed) ? end_id + 1 : end_id;
+    }
+
+    auto &&iter = Scan(begin_key, end_key);
+    if (expect_success) {
+      for (; iter; ++iter, ++begin_pos) {
+        const auto &[key, payload] = *iter;
+        const auto val_id = (write_twice) ? begin_pos + 1 : begin_pos;
+        AssertEQ(keys_.at(begin_pos), key, "[Scan: key]");
+        AssertEQ(payloads_.at(val_id), payload, "[Scan: payload]");
+        if (HasFatalFailure()) return;
+      }
+      if (end_ref) {
+        ASSERT_EQ(begin_pos, end_pos) << "[Scan: iterator]";
+      }
+    }
+    ASSERT_FALSE(iter) << "[Scan: iterator]";
   }
 
   void
@@ -346,25 +393,7 @@ class IndexFixture : public testing::Test
   void
   VerifyBulkload()
   {
-    if constexpr (HasBulkloadOperation<ImplStat>()) {
-      if constexpr (IsVarLen<Key>() || IsVarLen<Payload>()) {
-        std::vector<std::tuple<Key, Payload, size_t, size_t>> entries{};
-        entries.reserve(kExecNum);
-        for (size_t i = 0; i < kExecNum; ++i) {
-          const auto &key = keys_.at(i);
-          const auto &payload = payloads_.at(i);
-          entries.emplace_back(key, payload, GetLength(key), GetLength(payload));
-        }
-        ASSERT_EQ(index_->Bulkload(entries, 1), 0) << "[Bulkload: RC]";
-      } else {
-        std::vector<std::pair<Key, Payload>> entries{};
-        entries.reserve(kExecNum);
-        for (size_t i = 0; i < kExecNum; ++i) {
-          entries.emplace_back(keys_.at(i), payloads_.at(i));
-        }
-        ASSERT_EQ(index_->Bulkload(entries, 1), 0) << "[Bulkload: RC]";
-      }
-    }
+    ASSERT_EQ(Bulkload(), 0) << "[Bulkload: RC]";
   }
 
   /*############################################################################

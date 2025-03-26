@@ -34,6 +34,31 @@
  *############################################################################*/
 
 /**
+ * @brief A dummy class for representing record iterator.
+ *
+ */
+template <class Key, class Payload>
+struct DummyIter {
+  constexpr explicit
+  operator bool()
+  {
+    return false;
+  }
+
+  constexpr auto
+  operator*() const  //
+      -> std::pair<Key, Payload>
+  {
+    return {Key{}, Payload{}};
+  }
+
+  constexpr void
+  operator++()
+  {
+  }
+};
+
+/**
  * @brief An example class to represent CAS-updatable data.
  *
  */
@@ -333,6 +358,14 @@ IsVarLen()  //
 /*##############################################################################
  * Template functions for disabling tests of each operation
  *############################################################################*/
+
+template <class ImplStat>
+constexpr auto
+HasReadOperation()  //
+    -> bool
+{
+  return true;
+}
 
 template <class ImplStat>
 constexpr auto
