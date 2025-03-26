@@ -36,6 +36,7 @@
 #include <vector>
 
 // external libraries
+#include "dbgroup/index/utility.hpp"
 #include "gtest/gtest.h"
 
 // local sources
@@ -244,6 +245,7 @@ class IndexMultiThreadFixture : public testing::Test
   Scan(  //
       [[maybe_unused]] const ScanKey &begin_key = std::nullopt,
       [[maybe_unused]] const ScanKey &end_key = std::nullopt)
+  // -> IteratorType
   {
     if constexpr (kDisableScanTest) {
       return DummyIter<Key, Payload>{};
@@ -255,62 +257,67 @@ class IndexMultiThreadFixture : public testing::Test
   auto
   Write(  //
       [[maybe_unused]] const size_t key_id,
-      [[maybe_unused]] const size_t pay_id)
+      [[maybe_unused]] const size_t pay_id)  //
+      -> ReturnCode
   {
     if constexpr (kDisableWriteTest) {
-      return 0;
+      return kKeyNotExist;
     } else {
       const auto &key = keys_.at(key_id);
       const auto &payload = payloads_.at(pay_id);
-      return static_cast<int>(index_->Write(key, payload, GetLength(key), GetLength(payload)));
+      return index_->Write(key, payload, GetLength(key), GetLength(payload));
     }
   }
 
   auto
   Insert(  //
       [[maybe_unused]] const size_t key_id,
-      [[maybe_unused]] const size_t pay_id)
+      [[maybe_unused]] const size_t pay_id)  //
+      -> ReturnCode
   {
     if constexpr (kDisableInsertTest) {
-      return 0;
+      return kKeyNotExist;
     } else {
       const auto &key = keys_.at(key_id);
       const auto &payload = payloads_.at(pay_id);
-      return static_cast<int>(index_->Insert(key, payload, GetLength(key), GetLength(payload)));
+      return index_->Insert(key, payload, GetLength(key), GetLength(payload));
     }
   }
 
   auto
   Update(  //
       [[maybe_unused]] const size_t key_id,
-      [[maybe_unused]] const size_t pay_id)
+      [[maybe_unused]] const size_t pay_id)  //
+      -> ReturnCode
   {
     if constexpr (kDisableUpdateTest) {
-      return 0;
+      return kKeyExist;
     } else {
       const auto &key = keys_.at(key_id);
       const auto &payload = payloads_.at(pay_id);
-      return static_cast<int>(index_->Update(key, payload, GetLength(key), GetLength(payload)));
+      return index_->Update(key, payload, GetLength(key), GetLength(payload));
     }
   }
 
   auto
-  Delete(  //
-      [[maybe_unused]] const size_t key_id)
+  Delete(                                    //
+      [[maybe_unused]] const size_t key_id)  //
+      -> ReturnCode
   {
     if constexpr (kDisableDeleteTest) {
-      return 0;
+      return kKeyExist;
     } else {
       const auto &key = keys_.at(key_id);
-      return static_cast<int>(index_->Delete(key, GetLength(key)));
+      return index_->Delete(key, GetLength(key));
     }
   }
 
   auto
-  Bulkload()
+  Bulkload()  //
+      -> ReturnCode
   {
     if constexpr (kDisableBulkloadTest) {
-      return 0;
+      return kKeyNotExist;
     } else {
       constexpr size_t kOpsNum = (kExecNum + 1) * kThreadNum;
       std::vector<std::tuple<Key, Payload, size_t, size_t>> entries{};
@@ -495,7 +502,7 @@ class IndexMultiThreadFixture : public testing::Test
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
         if (!no_failure_.load(std::memory_order_relaxed)) break;
         const auto pay_id = (is_update) ? w_id + kThreadNum : w_id;
-        AssertEQ(Write(id, pay_id), 0, "Write: RC");
+        AssertEQ(Write(id, pay_id), kSuccess, "Write: RC");
       }
     };
 
@@ -516,9 +523,9 @@ class IndexMultiThreadFixture : public testing::Test
         if (!no_failure_.load(std::memory_order_relaxed)) break;
         const auto pay_id = (is_update) ? w_id + kThreadNum : w_id;
         if (expect_success) {
-          AssertEQ(Insert(id, pay_id), 0, "Insert: RC");
+          AssertEQ(Insert(id, pay_id), kSuccess, "Insert: RC");
         } else {
-          AssertNE(Insert(id, pay_id), 0, "Insert: RC");
+          AssertEQ(Insert(id, pay_id), kKeyNotExist, "Insert: RC");
         }
       }
     };
@@ -539,9 +546,9 @@ class IndexMultiThreadFixture : public testing::Test
         if (!no_failure_.load(std::memory_order_relaxed)) break;
         const auto pay_id = w_id + kThreadNum;
         if (expect_success) {
-          AssertEQ(Update(id, pay_id), 0, "Update: RC");
+          AssertEQ(Update(id, pay_id), kSuccess, "Update: RC");
         } else {
-          AssertNE(Update(id, pay_id), 0, "Update: RC");
+          AssertEQ(Update(id, pay_id), kKeyExist, "Update: RC");
         }
       }
     };
@@ -561,9 +568,9 @@ class IndexMultiThreadFixture : public testing::Test
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
         if (!no_failure_.load(std::memory_order_relaxed)) break;
         if (expect_success) {
-          AssertEQ(Delete(id), 0, "Delete: RC");
+          AssertEQ(Delete(id), kSuccess, "Delete: RC");
         } else {
-          AssertNE(Delete(id), 0, "Delete: RC");
+          AssertEQ(Delete(id), kKeyExist, "Delete: RC");
         }
       }
     };
@@ -577,7 +584,7 @@ class IndexMultiThreadFixture : public testing::Test
   {
     if (!no_failure_.load(std::memory_order_relaxed)) return;
 
-    AssertEQ(static_cast<int>(Bulkload()), 0, "Bulkload: RC");
+    AssertEQ(Bulkload(), kSuccess, "Bulkload: RC");
   }
 
   /*############################################################################
@@ -712,11 +719,11 @@ class IndexMultiThreadFixture : public testing::Test
 
     auto scan_proc = [&]() -> void {
       Key prev_key{};
-      if constexpr (IsVarLen<Key>()) {
+      if constexpr (IsVarLenData<Key>()) {
         prev_key = reinterpret_cast<Key>(::operator new(kVarDataLength));
       }
       while (counter < kReadThread) {
-        if constexpr (IsVarLen<Key>()) {
+        if constexpr (IsVarLenData<Key>()) {
           memcpy(prev_key, keys_.at(0), GetLength<Key>(keys_.at(0)));
         } else {
           prev_key = keys_.at(0);
@@ -725,14 +732,14 @@ class IndexMultiThreadFixture : public testing::Test
           if (!no_failure_.load(std::memory_order_relaxed)) break;
           const auto &[key, payload] = *iter;
           AssertLT(prev_key, key, "Scan key");
-          if constexpr (IsVarLen<Key>()) {
+          if constexpr (IsVarLenData<Key>()) {
             memcpy(prev_key, key, GetLength<Key>(key));
           } else {
             prev_key = key;
           }
         }
       }
-      if constexpr (IsVarLen<Key>()) {
+      if constexpr (IsVarLenData<Key>()) {
         ::operator delete(prev_key);
       }
     };
@@ -740,7 +747,7 @@ class IndexMultiThreadFixture : public testing::Test
     auto write_proc = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, kRandom)) {
         if (!no_failure_.load(std::memory_order_relaxed)) break;
-        AssertEQ(Write(id, w_id), 0, "Write: RC");
+        AssertEQ(Write(id, w_id), kSuccess, "Write: RC");
       }
       counter += 1;
     };
@@ -748,7 +755,7 @@ class IndexMultiThreadFixture : public testing::Test
     auto delete_proc = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, kRandom)) {
         if (!no_failure_.load(std::memory_order_relaxed)) break;
-        AssertEQ(Delete(id), 0, "Delete: RC");
+        AssertEQ(Delete(id), kSuccess, "Delete: RC");
       }
       counter += 1;
     };

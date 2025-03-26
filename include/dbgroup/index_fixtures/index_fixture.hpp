@@ -29,6 +29,7 @@
 #include <vector>
 
 // external libraries
+#include "dbgroup/index/utility.hpp"
 #include "gtest/gtest.h"
 
 // local sources
@@ -158,6 +159,7 @@ class IndexFixture : public testing::Test
   Scan(  //
       [[maybe_unused]] const ScanKey &begin_key = std::nullopt,
       [[maybe_unused]] const ScanKey &end_key = std::nullopt)
+  // -> IteratorType
   {
     if constexpr (kDisableScanTest) {
       return DummyIter<Key, Payload>{};
@@ -169,10 +171,11 @@ class IndexFixture : public testing::Test
   auto
   Write(  //
       [[maybe_unused]] const size_t key_id,
-      [[maybe_unused]] const size_t pay_id)
+      [[maybe_unused]] const size_t pay_id)  //
+      -> ReturnCode
   {
     if constexpr (kDisableWriteTest) {
-      return 0;
+      return kKeyNotExist;
     } else {
       const auto &key = keys_.at(key_id);
       const auto &payload = payloads_.at(pay_id);
@@ -183,10 +186,11 @@ class IndexFixture : public testing::Test
   auto
   Insert(  //
       [[maybe_unused]] const size_t key_id,
-      [[maybe_unused]] const size_t pay_id)
+      [[maybe_unused]] const size_t pay_id)  //
+      -> ReturnCode
   {
     if constexpr (kDisableInsertTest) {
-      return 0;
+      return kKeyNotExist;
     } else {
       const auto &key = keys_.at(key_id);
       const auto &payload = payloads_.at(pay_id);
@@ -197,10 +201,11 @@ class IndexFixture : public testing::Test
   auto
   Update(  //
       [[maybe_unused]] const size_t key_id,
-      [[maybe_unused]] const size_t pay_id)
+      [[maybe_unused]] const size_t pay_id)  //
+      -> ReturnCode
   {
     if constexpr (kDisableUpdateTest) {
-      return 0;
+      return kKeyExist;
     } else {
       const auto &key = keys_.at(key_id);
       const auto &payload = payloads_.at(pay_id);
@@ -209,10 +214,12 @@ class IndexFixture : public testing::Test
   }
 
   auto
-  Delete([[maybe_unused]] const size_t key_id)
+  Delete(                                    //
+      [[maybe_unused]] const size_t key_id)  //
+      -> ReturnCode
   {
     if constexpr (kDisableDeleteTest) {
-      return 0;
+      return kKeyExist;
     } else {
       const auto &key = keys_.at(key_id);
       return index_->Delete(key, GetLength(key));
@@ -220,10 +227,11 @@ class IndexFixture : public testing::Test
   }
 
   auto
-  Bulkload()
+  Bulkload()  //
+      -> ReturnCode
   {
     if constexpr (kDisableBulkloadTest) {
-      return 0;
+      return kKeyNotExist;
     } else {
       std::vector<std::tuple<Key, Payload, size_t, size_t>> entries{};
       entries.reserve(kExecNum);
@@ -334,7 +342,7 @@ class IndexFixture : public testing::Test
     for (size_t i = 0; i < target_ids.size(); ++i) {
       const auto key_id = target_ids.at(i);
       const auto pay_id = (write_twice) ? key_id + 1 : key_id;
-      ASSERT_EQ(Write(key_id, pay_id), 0) << "[Write: RC]";
+      ASSERT_EQ(Write(key_id, pay_id), kSuccess) << "[Write: RC]";
     }
   }
 
@@ -349,9 +357,9 @@ class IndexFixture : public testing::Test
       const auto key_id = target_ids.at(i);
       const auto pay_id = (write_twice) ? key_id + 1 : key_id;
       if (expect_success) {
-        ASSERT_EQ(Insert(key_id, pay_id), 0) << "[Insert: RC]";
+        ASSERT_EQ(Insert(key_id, pay_id), kSuccess) << "[Insert: RC]";
       } else {
-        ASSERT_NE(Insert(key_id, pay_id), 0) << "[Insert: RC]";
+        ASSERT_EQ(Insert(key_id, pay_id), kKeyExist) << "[Insert: RC]";
       }
     }
   }
@@ -366,9 +374,9 @@ class IndexFixture : public testing::Test
       const auto key_id = target_ids.at(i);
       const auto pay_id = key_id + 1;
       if (expect_success) {
-        ASSERT_EQ(Update(key_id, pay_id), 0) << "[Update: RC]";
+        ASSERT_EQ(Update(key_id, pay_id), kSuccess) << "[Update: RC]";
       } else {
-        ASSERT_NE(Update(key_id, pay_id), 0) << "[Update: RC]";
+        ASSERT_EQ(Update(key_id, pay_id), kKeyNotExist) << "[Update: RC]";
       }
     }
   }
@@ -382,9 +390,9 @@ class IndexFixture : public testing::Test
     for (size_t i = 0; i < target_ids.size(); ++i) {
       const auto key_id = target_ids.at(i);
       if (expect_success) {
-        ASSERT_EQ(Delete(key_id), 0) << "[Delete: RC]";
+        ASSERT_EQ(Delete(key_id), kSuccess) << "[Delete: RC]";
       } else {
-        ASSERT_NE(Delete(key_id), 0) << "[Delete: RC]";
+        ASSERT_EQ(Delete(key_id), kKeyNotExist) << "[Delete: RC]";
       }
     }
   }
@@ -392,7 +400,7 @@ class IndexFixture : public testing::Test
   void
   VerifyBulkload()
   {
-    ASSERT_EQ(Bulkload(), 0) << "[Bulkload: RC]";
+    ASSERT_EQ(Bulkload(), kSuccess) << "[Bulkload: RC]";
   }
 
   /*############################################################################

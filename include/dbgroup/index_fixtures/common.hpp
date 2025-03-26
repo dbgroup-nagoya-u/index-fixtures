@@ -27,6 +27,7 @@
 #include <vector>
 
 // external libraries
+#include "dbgroup/index/utility.hpp"
 #include "gtest/gtest.h"
 
 /*##############################################################################
@@ -120,7 +121,18 @@ operator<<(  //
   return os;
 }
 
-namespace dbgroup::index::test
+namespace dbgroup::index
+{
+
+template <>
+constexpr auto
+IsVarLenData<char *>()  //
+    -> bool
+{
+  return true;
+}
+
+namespace test
 {
 /*##############################################################################
  * Constants for testing
@@ -244,24 +256,6 @@ struct Original {
  * Global utility functions
  *############################################################################*/
 
-/**
- * @tparam Compare a comparator class.
- * @tparam T a target class.
- * @param obj_1 an object to be compared.
- * @param obj_2 another object to be compared.
- * @retval true if given objects are equivalent.
- * @retval false otherwise.
- */
-template <class Compare, class T>
-constexpr auto
-IsEqual(  //
-    const T &obj_1,
-    const T &obj_2)  //
-    -> bool
-{
-  return !Compare{}(obj_1, obj_2) && !Compare{}(obj_2, obj_1);
-}
-
 template <class T>
 auto
 GetLength(          //
@@ -343,14 +337,6 @@ ReleaseTestData(  //
   }
 }
 
-template <class T>
-constexpr auto
-IsVarLen()  //
-    -> bool
-{
-  return std::is_same_v<T, char *>;
-}
-
 /*##############################################################################
  * Template functions for disabling tests of each operation
  *############################################################################*/
@@ -397,6 +383,7 @@ constexpr bool kDisableBulkloadTest = true;
 constexpr bool kDisableBulkloadTest = false;
 #endif
 
-}  // namespace dbgroup::index::test
+}  // namespace test
+}  // namespace dbgroup::index
 
 #endif  // DBGROUP_INDEX_FIXTURES_COMMON_HPP

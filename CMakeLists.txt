@@ -96,6 +96,14 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
   )
   FetchContent_MakeAvailable(googletest)
 
+  # use our utility library
+  FetchContent_Declare(
+    cpp-utility
+    GIT_REPOSITORY "https://github.com/dbgroup-nagoya-u/cpp-utility.git"
+    GIT_TAG "74cca72cffec6f26399de115ff658d58ebafdc03"
+  )
+  FetchContent_MakeAvailable(cpp-utility)
+
   #----------------------------------------------------------------------------#
   # Build targets
   #----------------------------------------------------------------------------#
@@ -122,6 +130,7 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
   )
   target_link_libraries(${PROJECT_NAME} INTERFACE
     Threads::Threads
+    dbgroup::cpp_utility
     GTest::gtest_main
   )
 
