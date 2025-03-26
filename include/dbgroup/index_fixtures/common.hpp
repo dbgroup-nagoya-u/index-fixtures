@@ -18,108 +18,20 @@
 #define DBGROUP_INDEX_FIXTURES_COMMON_HPP
 
 // C++ standard libraries
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <functional>
 #include <iostream>
+#include <mutex>
+#include <string>
 #include <type_traits>
 #include <vector>
 
 // external libraries
 #include "dbgroup/index/utility.hpp"
 #include "gtest/gtest.h"
-
-/*##############################################################################
- * Classes for testing
- *############################################################################*/
-
-/**
- * @brief A dummy class for representing record iterator.
- *
- */
-template <class Key, class Payload>
-struct DummyIter {
-  constexpr explicit
-  operator bool()
-  {
-    return false;
-  }
-
-  constexpr auto
-  operator*() const  //
-      -> std::pair<Key, Payload>
-  {
-    return {Key{}, Payload{}};
-  }
-
-  constexpr void
-  operator++()
-  {
-  }
-};
-
-/**
- * @brief An example class to represent CAS-updatable data.
- *
- */
-class MyClass
-{
- public:
-  constexpr MyClass() : data{}, control_bits{0} {}
-
-  constexpr explicit MyClass(  //
-      const uint64_t val)
-      : data{val}, control_bits{0}
-  {
-  }
-
-  ~MyClass() = default;
-
-  constexpr MyClass(const MyClass &) = default;
-  constexpr MyClass(MyClass &&) = default;
-
-  constexpr auto operator=(const MyClass &) -> MyClass & = default;
-  constexpr auto operator=(MyClass &&) -> MyClass & = default;
-
-  constexpr auto
-  operator=(                 //
-      const uint64_t value)  //
-      -> MyClass &
-  {
-    data = value;
-    return *this;
-  }
-
-  constexpr auto
-  operator<(                      //
-      const MyClass &comp) const  //
-      -> bool
-  {
-    return data < comp.data;
-  }
-
-  constexpr auto
-  operator==(                     //
-      const MyClass &comp) const  //
-      -> bool
-  {
-    return data == comp.data;
-  }
-
-  uint64_t data : 61;
-  uint64_t control_bits : 3;  // NOLINT
-};
-
-auto
-operator<<(  //
-    std::ostream &os,
-    const MyClass &obj)  //
-    -> std::ostream &
-{
-  os << obj.data;
-  return os;
-}
 
 namespace dbgroup::index
 {
@@ -174,6 +86,48 @@ constexpr bool kWithWrite = true;
 
 constexpr bool kWithDelete = true;
 
+#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_READ_TEST
+constexpr bool kDisableReadTest = true;
+#else
+constexpr bool kDisableReadTest = false;
+#endif
+
+#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_SCAN_TEST
+constexpr bool kDisableScanTest = true;
+#else
+constexpr bool kDisableScanTest = false;
+#endif
+
+#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_WRITE_TEST
+constexpr bool kDisableWriteTest = true;
+#else
+constexpr bool kDisableWriteTest = false;
+#endif
+
+#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_INSERT_TEST
+constexpr bool kDisableInsertTest = true;
+#else
+constexpr bool kDisableInsertTest = false;
+#endif
+
+#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_UPDATE_TEST
+constexpr bool kDisableUpdateTest = true;
+#else
+constexpr bool kDisableUpdateTest = false;
+#endif
+
+#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_DELETE_TEST
+constexpr bool kDisableDeleteTest = true;
+#else
+constexpr bool kDisableDeleteTest = false;
+#endif
+
+#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_BULKLOAD_TEST
+constexpr bool kDisableBulkloadTest = true;
+#else
+constexpr bool kDisableBulkloadTest = false;
+#endif
+
 /*##############################################################################
  * Global utility classes
  *############################################################################*/
@@ -185,8 +139,81 @@ struct IndexInfo {
   using Index = IndexT<typename Key::Data, typename Payload::Data, typename Key::Comp>;
 };
 
+/**
+ * @brief An example class to represent CAS-updatable data.
+ *
+ */
+class MyClass
+{
+ public:
+  constexpr MyClass() : data{}, control_bits{0} {}
+
+  constexpr explicit MyClass(  //
+      const uint64_t val)
+      : data{val}, control_bits{0}
+  {
+  }
+
+  ~MyClass() = default;
+
+  constexpr MyClass(const MyClass &) = default;
+  constexpr MyClass(MyClass &&) = default;
+
+  constexpr auto operator=(const MyClass &) -> MyClass & = default;
+  constexpr auto operator=(MyClass &&) -> MyClass & = default;
+
+  constexpr auto
+  operator=(                 //
+      const uint64_t value)  //
+      -> MyClass &
+  {
+    data = value;
+    return *this;
+  }
+
+  constexpr auto
+  operator<(                      //
+      const MyClass &comp) const  //
+      -> bool
+  {
+    return data < comp.data;
+  }
+
+  constexpr auto
+  operator==(                     //
+      const MyClass &comp) const  //
+      -> bool
+  {
+    return data == comp.data;
+  }
+
+  uint64_t data : 61;
+  uint64_t control_bits : 3;  // NOLINT
+};
+
 struct VarData {
   char data[kVarDataLength]{};
+};
+
+template <class Key, class Payload>
+struct DummyIter {
+  constexpr explicit
+  operator bool()
+  {
+    return false;
+  }
+
+  constexpr auto
+  operator*() const  //
+      -> std::pair<Key, Payload>
+  {
+    return {Key{}, Payload{}};
+  }
+
+  constexpr void
+  operator++()
+  {
+  }
 };
 
 /*##############################################################################
@@ -252,6 +279,17 @@ struct Original {
   using Comp = std::less<MyClass>;
 };
 
+struct RCComp {
+  constexpr auto
+  operator()(  //
+      const ReturnCode &lhs,
+      const ReturnCode &rhs) const  //
+      -> bool
+  {
+    return lhs < rhs;
+  }
+};
+
 /*##############################################################################
  * Global utility functions
  *############################################################################*/
@@ -284,7 +322,7 @@ CreateDummyString(  // NOLINT
     base.data[level] = '0' + j;                      // NOLINT
     base.data[level + 1] = '\0';
 
-    auto *data = reinterpret_cast<char *>(&(var_arr[i]));
+    auto *data = std::bit_cast<char *>(&(var_arr[i]));
     memcpy(data, &base, kVarDataLength);
     data_vec.emplace_back(data);
     if (++i >= data_num) return;
@@ -331,59 +369,138 @@ ReleaseTestData(  //
     [[maybe_unused]] std::vector<T> &data_vec)
 {
   if constexpr (std::is_same_v<T, char *>) {
-    delete[] reinterpret_cast<VarData *>(data_vec.front());
+    delete[] std::bit_cast<VarData *>(data_vec.front());
   } else if constexpr (std::is_same_v<T, uint64_t *>) {
     delete[] data_vec.front();
   }
 }
 
 /*##############################################################################
- * Template functions for disabling tests of each operation
+ * Utility functions for assertion
  *############################################################################*/
 
-#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_READ_TEST
-constexpr bool kDisableReadTest = true;
-#else
-constexpr bool kDisableReadTest = false;
-#endif
+/// a mutex for outputting messages
+std::mutex _io_mtx{};  // NOLINT
 
-#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_SCAN_TEST
-constexpr bool kDisableScanTest = true;
+void
+AssertTrue(  //
+    const bool expect_true,
+    const std::string_view &tag)
+{
+  if (!expect_true) {
+    const std::lock_guard lock{_io_mtx};
+    std::cout << "  [" << tag << "] The actual value was not true.\n";
+#ifdef NDEBUG
+    throw std::runtime_error{""};
 #else
-constexpr bool kDisableScanTest = false;
+    FAIL();
 #endif
+  }
+}
 
-#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_WRITE_TEST
-constexpr bool kDisableWriteTest = true;
+void
+AssertFalse(  //
+    const bool expect_false,
+    const std::string_view &tag)
+{
+  if (expect_false) {
+    const std::lock_guard lock{_io_mtx};
+    std::cout << "  [" << tag << "] The actual value was not false.\n";
+#ifdef NDEBUG
+    throw std::runtime_error{""};
 #else
-constexpr bool kDisableWriteTest = false;
+    FAIL();
 #endif
+  }
+}
 
-#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_INSERT_TEST
-constexpr bool kDisableInsertTest = true;
+template <class Comp, class T>
+void
+AssertEQ(  //
+    const T &actual,
+    const T &expected,
+    const std::string_view &tag)
+{
+  if (!IsEqual<Comp>(actual, expected)) {
+    const std::lock_guard lock{_io_mtx};
+    std::cout << "  [" << tag << "] The actual value was different from the expected one.\n"
+              << "    actual:   " << actual << "\n"
+              << "    expected: " << expected << "\n";
+#ifdef NDEBUG
+    throw std::runtime_error{""};
 #else
-constexpr bool kDisableInsertTest = false;
+    FAIL();
 #endif
+  }
+}
 
-#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_UPDATE_TEST
-constexpr bool kDisableUpdateTest = true;
+template <class Comp, class T>
+void
+AssertNE(  //
+    const T &actual,
+    const T &expected,
+    const std::string_view &tag)
+{
+  if (IsEqual<Comp>(actual, expected)) {
+    const std::lock_guard lock{_io_mtx};
+    std::cout << "  [" << tag << "] The actual value was equal to the expected one.\n"
+              << "    actual:   " << actual << "\n"
+              << "    expected: " << expected << "\n";
+#ifdef NDEBUG
+    throw std::runtime_error{""};
 #else
-constexpr bool kDisableUpdateTest = false;
+    FAIL();
 #endif
+  }
+}
 
-#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_DELETE_TEST
-constexpr bool kDisableDeleteTest = true;
+template <class Comp, class T>
+void
+AssertLT(  //
+    const T &lhs,
+    const T &rhs,
+    const std::string_view &tag)
+{
+  if (!Comp{}(lhs, rhs)) {
+    const std::lock_guard lock{_io_mtx};
+    std::cout << "  [" << tag << "] The left-hand side value was larger the right-hand side one.\n"
+              << "    lhs: " << lhs << "\n"
+              << "    rhs: " << rhs << "\n";
+#ifdef NDEBUG
+    throw std::runtime_error{""};
 #else
-constexpr bool kDisableDeleteTest = false;
+    FAIL();
 #endif
-
-#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_BULKLOAD_TEST
-constexpr bool kDisableBulkloadTest = true;
-#else
-constexpr bool kDisableBulkloadTest = false;
-#endif
+  }
+}
 
 }  // namespace test
 }  // namespace dbgroup::index
+
+auto
+operator<<(  //
+    std::ostream &os,
+    const ::dbgroup::index::ReturnCode &obj)  //
+    -> std::ostream &
+{
+  if (obj == ::dbgroup::index::ReturnCode::kSuccess) {
+    os << "kSuccess";
+  } else if (obj == ::dbgroup::index::ReturnCode::kKeyNotExist) {
+    os << "kKeyNotExist";
+  } else {
+    os << "kKeyExist";
+  }
+  return os;
+}
+
+auto
+operator<<(  //
+    std::ostream &os,
+    const ::dbgroup::index::test::MyClass &obj)  //
+    -> std::ostream &
+{
+  os << obj.data;
+  return os;
+}
 
 #endif  // DBGROUP_INDEX_FIXTURES_COMMON_HPP

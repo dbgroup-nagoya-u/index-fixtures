@@ -111,7 +111,7 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
   add_library(${PROJECT_NAME} INTERFACE)
   add_library(dbgroup::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
   target_compile_features(${PROJECT_NAME} INTERFACE
-    "cxx_std_17"
+    "cxx_std_20"
   )
   target_compile_definitions(${PROJECT_NAME} INTERFACE
     DBGROUP_INDEX_FIXTURES_DISABLE_READ_TEST=${DBGROUP_INDEX_FIXTURES_DISABLE_READ_TEST}

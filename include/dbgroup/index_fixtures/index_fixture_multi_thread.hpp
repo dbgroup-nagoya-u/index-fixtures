@@ -20,6 +20,7 @@
 // C++ standard libraries
 #include <algorithm>
 #include <atomic>
+#include <bit>
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
@@ -94,126 +95,6 @@ class IndexMultiThreadFixture : public testing::Test
    *##########################################################################*/
 
   void
-  AssertTrue(  //
-      const bool expect_true,
-      const std::string_view &tag)
-  {
-    if (!expect_true) {
-      const std::lock_guard lock{io_mtx_};
-      std::cout << "  [" << tag << "] The actual value was not true.\n";
-#ifdef NDEBUG
-      throw std::runtime_error{""};
-#else
-      FAIL();
-#endif
-    }
-  }
-
-  void
-  AssertFalse(  //
-      const bool expect_false,
-      const std::string_view &tag)
-  {
-    if (expect_false) {
-      const std::lock_guard lock{io_mtx_};
-      std::cout << "  [" << tag << "] The actual value was not false.\n";
-#ifdef NDEBUG
-      throw std::runtime_error{""};
-#else
-      FAIL();
-#endif
-    }
-  }
-
-  template <class T>
-  void
-  AssertEQ(  //
-      const T &actual,
-      const T &expected,
-      const std::string_view &tag)
-  {
-    bool is_equal;
-    if constexpr (std::is_same_v<T, char *>) {
-      is_equal = std::strcmp(actual, expected) == 0;
-    } else if constexpr (std::is_same_v<T, uint64_t *>) {
-      is_equal = *actual == *expected;
-    } else {
-      is_equal = actual == expected;
-    }
-
-    if (!is_equal) {
-      const std::lock_guard lock{io_mtx_};
-      std::cout << "  [" << tag << "] The actual value was different from the expected one.\n"
-                << "    actual:   " << actual << "\n"
-                << "    expected: " << expected << "\n";
-#ifdef NDEBUG
-      throw std::runtime_error{""};
-#else
-      FAIL();
-#endif
-    }
-  }
-
-  template <class T>
-  void
-  AssertNE(  //
-      const T &actual,
-      const T &expected,
-      const std::string_view &tag)
-  {
-    bool is_not_equal;
-    if constexpr (std::is_same_v<T, char *>) {
-      is_not_equal = std::strcmp(actual, expected) != 0;
-    } else if constexpr (std::is_same_v<T, uint64_t *>) {
-      is_not_equal = *actual != *expected;
-    } else {
-      is_not_equal = actual != expected;
-    }
-
-    if (!is_not_equal) {
-      const std::lock_guard lock{io_mtx_};
-      std::cout << "  [" << tag << "] The actual value was equal to the expected one.\n"
-                << "    actual:   " << actual << "\n"
-                << "    expected: " << expected << "\n";
-#ifdef NDEBUG
-      throw std::runtime_error{""};
-#else
-      FAIL();
-#endif
-    }
-  }
-
-  template <class T>
-  void
-  AssertLT(  //
-      const T &lhs,
-      const T &rhs,
-      const std::string_view &tag)
-  {
-    bool is_less;
-    if constexpr (std::is_same_v<T, char *>) {
-      is_less = std::strcmp(lhs, rhs) < 0;
-    } else if constexpr (std::is_same_v<T, uint64_t *>) {
-      is_less = *lhs < *rhs;
-    } else {
-      is_less = lhs < rhs;
-    }
-
-    if (!is_less) {
-      const std::lock_guard lock{io_mtx_};
-      std::cout << "  [" << tag
-                << "] The left-hand side value was larger the right-hand side one.\n"
-                << "    lhs: " << lhs << "\n"
-                << "    rhs: " << rhs << "\n";
-#ifdef NDEBUG
-      throw std::runtime_error{""};
-#else
-      FAIL();
-#endif
-    }
-  }
-
-  void
   PrepareData()
   {
     index_ = std::make_unique<Index>();
@@ -227,6 +108,95 @@ class IndexMultiThreadFixture : public testing::Test
     ReleaseTestData(keys_);
     ReleaseTestData(payloads_);
   }
+
+  [[nodiscard]] auto
+  CreateTargetIDs(  //
+      const size_t w_id,
+      const AccessPattern pattern)  //
+      -> std::vector<size_t>
+  {
+    std::vector<size_t> target_ids{};
+    {
+      std::shared_lock guard{s_mtx_};
+
+      target_ids.reserve(kExecNum);
+      if (pattern == kReverse) {
+        for (size_t i = kExecNum; i > 0; --i) {
+          target_ids.emplace_back(kThreadNum * i + w_id);
+        }
+      } else {
+        for (size_t i = 1; i <= kExecNum; ++i) {
+          target_ids.emplace_back(kThreadNum * i + w_id);
+        }
+      }
+
+      if (pattern == kRandom) {
+        std::mt19937_64 rand_engine{kRandomSeed};
+        std::shuffle(target_ids.begin(), target_ids.end(), rand_engine);
+      }
+    }
+    {
+      std::unique_lock lock{x_mtx_};
+      cond_.wait(lock, [this] { return is_ready_; });
+    }
+    return target_ids;
+  }
+
+  [[nodiscard]] auto
+  CreateTargetIDsForConcurrentSMOs()  //
+      -> std::vector<size_t>
+  {
+    std::mt19937_64 rng{kRandomSeed};
+    std::uniform_int_distribution<size_t> exec_dist{1, kExecNum};
+    std::uniform_int_distribution<size_t> thread_dist{0, kThreadNum / 2 - 1};
+    std::vector<size_t> target_ids{};
+    {
+      std::shared_lock guard{s_mtx_};
+
+      target_ids.reserve(kExecNum);
+      for (size_t i = 0; i < kExecNum; ++i) {
+        target_ids.emplace_back(kThreadNum * exec_dist(rng) + thread_dist(rng));
+      }
+    }
+
+    std::unique_lock lock{x_mtx_};
+    cond_.wait(lock, [this] { return is_ready_; });
+
+    return target_ids;
+  }
+
+  void
+  RunMT(  //
+      const std::function<void(size_t)> &func)
+  {
+    std::vector<std::thread> threads{};
+    for (size_t i = 0; i < kThreadNum; ++i) {
+      threads.emplace_back(
+          [&](const size_t id) {
+            try {
+              func(id);
+            } catch ([[maybe_unused]] const std::exception &e) {
+              no_failure_ = false;
+              ADD_FAILURE();
+            }
+          },
+          i);
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds{kWaitForThreadCreation});
+    {
+      std::lock_guard guard{s_mtx_};
+      is_ready_ = true;
+      cond_.notify_all();
+    }
+    for (auto &&t : threads) {
+      t.join();
+    }
+  }
+
+  /*############################################################################
+   * Wrapper functions
+   *##########################################################################*/
 
   auto
   Read(                                      //
@@ -331,91 +301,6 @@ class IndexMultiThreadFixture : public testing::Test
     }
   }
 
-  [[nodiscard]] auto
-  CreateTargetIDs(  //
-      const size_t w_id,
-      const AccessPattern pattern)  //
-      -> std::vector<size_t>
-  {
-    std::vector<size_t> target_ids{};
-    {
-      std::shared_lock guard{s_mtx_};
-
-      target_ids.reserve(kExecNum);
-      if (pattern == kReverse) {
-        for (size_t i = kExecNum; i > 0; --i) {
-          target_ids.emplace_back(kThreadNum * i + w_id);
-        }
-      } else {
-        for (size_t i = 1; i <= kExecNum; ++i) {
-          target_ids.emplace_back(kThreadNum * i + w_id);
-        }
-      }
-
-      if (pattern == kRandom) {
-        std::mt19937_64 rand_engine{kRandomSeed};
-        std::shuffle(target_ids.begin(), target_ids.end(), rand_engine);
-      }
-    }
-    {
-      std::unique_lock lock{x_mtx_};
-      cond_.wait(lock, [this] { return is_ready_; });
-    }
-    return target_ids;
-  }
-
-  [[nodiscard]] auto
-  CreateTargetIDsForConcurrentSMOs()  //
-      -> std::vector<size_t>
-  {
-    std::mt19937_64 rng{kRandomSeed};
-    std::uniform_int_distribution<size_t> exec_dist{1, kExecNum};
-    std::uniform_int_distribution<size_t> thread_dist{0, kThreadNum / 2 - 1};
-    std::vector<size_t> target_ids{};
-    {
-      std::shared_lock guard{s_mtx_};
-
-      target_ids.reserve(kExecNum);
-      for (size_t i = 0; i < kExecNum; ++i) {
-        target_ids.emplace_back(kThreadNum * exec_dist(rng) + thread_dist(rng));
-      }
-    }
-
-    std::unique_lock lock{x_mtx_};
-    cond_.wait(lock, [this] { return is_ready_; });
-
-    return target_ids;
-  }
-
-  void
-  RunMT(  //
-      const std::function<void(size_t)> &func)
-  {
-    std::vector<std::thread> threads{};
-    for (size_t i = 0; i < kThreadNum; ++i) {
-      threads.emplace_back(
-          [&](const size_t id) {
-            try {
-              func(id);
-            } catch ([[maybe_unused]] const std::exception &e) {
-              no_failure_.store(false, std::memory_order_relaxed);
-              ADD_FAILURE();
-            }
-          },
-          i);
-    }
-
-    std::this_thread::sleep_for(std::chrono::milliseconds{kWaitForThreadCreation});
-    {
-      std::lock_guard guard{s_mtx_};
-      is_ready_ = true;
-      cond_.notify_all();
-    }
-    for (auto &&t : threads) {
-      t.join();
-    }
-  }
-
   /*############################################################################
    * Functions for verification
    *##########################################################################*/
@@ -426,21 +311,17 @@ class IndexMultiThreadFixture : public testing::Test
       const bool is_update,
       const AccessPattern pattern)
   {
-    if constexpr (kDisableReadTest) {
-      return;
-    }
-
-    if (!no_failure_.load(std::memory_order_relaxed)) return;
+    if (kDisableReadTest || !no_failure_) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
-        if (!no_failure_.load(std::memory_order_relaxed)) break;
+        if (!no_failure_) break;
         const auto &read_val = Read(id);
         if (expect_success) {
           AssertTrue(static_cast<bool>(read_val), "Read: RC");
           if (read_val) {
             const auto expected_val = payloads_.at((is_update) ? w_id + kThreadNum : w_id);
-            AssertEQ(expected_val, read_val.value(), "Read: payload");
+            AssertEQ<PayComp>(expected_val, read_val.value(), "Read: payload");
           }
         } else {
           AssertFalse(static_cast<bool>(read_val), "Read: RC");
@@ -457,11 +338,7 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const bool expect_success,
       [[maybe_unused]] const bool is_update)
   {
-    if constexpr (kDisableScanTest) {
-      return;
-    }
-
-    if (!no_failure_.load(std::memory_order_relaxed)) return;
+    if (kDisableScanTest || !no_failure_) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
       size_t begin_id = kThreadNum + kExecNum * w_id;
@@ -475,14 +352,14 @@ class IndexMultiThreadFixture : public testing::Test
       auto &&iter = Scan(begin_key, end_key);
       if (expect_success) {
         for (; iter; ++iter, ++begin_id) {
-          if (!no_failure_.load(std::memory_order_relaxed)) break;
+          if (!no_failure_) return;
           const auto key_id = begin_id;
           const auto val_id = (is_update) ? key_id % kThreadNum + kThreadNum : key_id % kThreadNum;
           const auto &[key, payload] = *iter;
-          AssertEQ(keys_.at(key_id), key, "Scan: key");
-          AssertEQ(payloads_.at(val_id), payload, "Scan: payload");
+          AssertEQ<KeyComp>(keys_.at(key_id), key, "Scan: key");
+          AssertEQ<PayComp>(payloads_.at(val_id), payload, "Scan: payload");
         }
-        AssertEQ(begin_id, end_id, "Scan: # of records");
+        AssertEQ<std::less<size_t>>(begin_id, end_id, "Scan: # of records");
       }
       AssertFalse(static_cast<bool>(iter), "Scan: iterator reach end");
     };
@@ -496,13 +373,13 @@ class IndexMultiThreadFixture : public testing::Test
       const bool is_update,
       const AccessPattern pattern)
   {
-    if (!no_failure_.load(std::memory_order_relaxed)) return;
+    if (!no_failure_) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
-        if (!no_failure_.load(std::memory_order_relaxed)) break;
+        if (!no_failure_) return;
         const auto pay_id = (is_update) ? w_id + kThreadNum : w_id;
-        AssertEQ(Write(id, pay_id), kSuccess, "Write: RC");
+        AssertEQ<RCComp>(Write(id, pay_id), kSuccess, "Write: RC");
       }
     };
 
@@ -516,16 +393,16 @@ class IndexMultiThreadFixture : public testing::Test
       const bool is_update,
       const AccessPattern pattern)
   {
-    if (!no_failure_.load(std::memory_order_relaxed)) return;
+    if (!no_failure_) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
-        if (!no_failure_.load(std::memory_order_relaxed)) break;
+        if (!no_failure_) return;
         const auto pay_id = (is_update) ? w_id + kThreadNum : w_id;
         if (expect_success) {
-          AssertEQ(Insert(id, pay_id), kSuccess, "Insert: RC");
+          AssertEQ<RCComp>(Insert(id, pay_id), kSuccess, "Insert: RC");
         } else {
-          AssertEQ(Insert(id, pay_id), kKeyNotExist, "Insert: RC");
+          AssertEQ<RCComp>(Insert(id, pay_id), kKeyNotExist, "Insert: RC");
         }
       }
     };
@@ -539,16 +416,16 @@ class IndexMultiThreadFixture : public testing::Test
       const bool expect_success,
       const AccessPattern pattern)
   {
-    if (!no_failure_.load(std::memory_order_relaxed)) return;
+    if (!no_failure_) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
-        if (!no_failure_.load(std::memory_order_relaxed)) break;
+        if (!no_failure_) return;
         const auto pay_id = w_id + kThreadNum;
         if (expect_success) {
-          AssertEQ(Update(id, pay_id), kSuccess, "Update: RC");
+          AssertEQ<RCComp>(Update(id, pay_id), kSuccess, "Update: RC");
         } else {
-          AssertEQ(Update(id, pay_id), kKeyExist, "Update: RC");
+          AssertEQ<RCComp>(Update(id, pay_id), kKeyExist, "Update: RC");
         }
       }
     };
@@ -562,15 +439,15 @@ class IndexMultiThreadFixture : public testing::Test
       const bool expect_success,
       const AccessPattern pattern)
   {
-    if (!no_failure_.load(std::memory_order_relaxed)) return;
+    if (!no_failure_) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
-        if (!no_failure_.load(std::memory_order_relaxed)) break;
+        if (!no_failure_) return;
         if (expect_success) {
-          AssertEQ(Delete(id), kSuccess, "Delete: RC");
+          AssertEQ<RCComp>(Delete(id), kSuccess, "Delete: RC");
         } else {
-          AssertEQ(Delete(id), kKeyExist, "Delete: RC");
+          AssertEQ<RCComp>(Delete(id), kKeyExist, "Delete: RC");
         }
       }
     };
@@ -582,9 +459,9 @@ class IndexMultiThreadFixture : public testing::Test
   void
   VerifyBulkload()
   {
-    if (!no_failure_.load(std::memory_order_relaxed)) return;
+    if (!no_failure_) return;
 
-    AssertEQ(Bulkload(), kSuccess, "Bulkload: RC");
+    AssertEQ<RCComp>(Bulkload(), kSuccess, "Bulkload: RC");
   }
 
   /*############################################################################
@@ -709,10 +586,10 @@ class IndexMultiThreadFixture : public testing::Test
 
     auto read_proc = [&]() -> void {
       for (const auto id : CreateTargetIDsForConcurrentSMOs()) {
-        if (!no_failure_.load(std::memory_order_relaxed)) break;
+        if (!no_failure_) return;
         const auto &read_val = Read(id);
         if (read_val) {
-          AssertEQ(payloads_.at(id % kReadThread), read_val.value(), "Read value");
+          AssertEQ<PayComp>(payloads_.at(id % kReadThread), read_val.value(), "Read value");
         }
       }
     };
@@ -720,7 +597,7 @@ class IndexMultiThreadFixture : public testing::Test
     auto scan_proc = [&]() -> void {
       Key prev_key{};
       if constexpr (IsVarLenData<Key>()) {
-        prev_key = reinterpret_cast<Key>(::operator new(kVarDataLength));
+        prev_key = std::bit_cast<Key>(::operator new(kVarDataLength));
       }
       while (counter < kReadThread) {
         if constexpr (IsVarLenData<Key>()) {
@@ -729,9 +606,9 @@ class IndexMultiThreadFixture : public testing::Test
           prev_key = keys_.at(0);
         }
         for (auto &&iter = Scan(); iter; ++iter) {
-          if (!no_failure_.load(std::memory_order_relaxed)) break;
+          if (!no_failure_) return;
           const auto &[key, payload] = *iter;
-          AssertLT(prev_key, key, "Scan key");
+          AssertLT<KeyComp>(prev_key, key, "Scan key");
           if constexpr (IsVarLenData<Key>()) {
             memcpy(prev_key, key, GetLength<Key>(key));
           } else {
@@ -746,16 +623,16 @@ class IndexMultiThreadFixture : public testing::Test
 
     auto write_proc = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, kRandom)) {
-        if (!no_failure_.load(std::memory_order_relaxed)) break;
-        AssertEQ(Write(id, w_id), kSuccess, "Write: RC");
+        if (!no_failure_) return;
+        AssertEQ<RCComp>(Write(id, w_id), kSuccess, "Write: RC");
       }
       counter += 1;
     };
 
     auto delete_proc = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, kRandom)) {
-        if (!no_failure_.load(std::memory_order_relaxed)) break;
-        AssertEQ(Delete(id), kSuccess, "Delete: RC");
+        if (!no_failure_) return;
+        AssertEQ<RCComp>(Delete(id), kSuccess, "Delete: RC");
       }
       counter += 1;
     };
@@ -794,7 +671,7 @@ class IndexMultiThreadFixture : public testing::Test
     std::cout << "  [dbgroup] initialization...\n";
     RunMT(init_worker);
     for (size_t i = 0; i < kRepeatNum; ++i) {
-      if (!no_failure_.load(std::memory_order_relaxed)) break;
+      if (!no_failure_) break;
       std::cout << "  [dbgroup] repeat #" << i << "...\n";
       counter = 0;
       RunMT(even_delete_worker);
@@ -872,9 +749,6 @@ class IndexMultiThreadFixture : public testing::Test
 
   /// a shared mutex for blocking main process.
   std::shared_mutex s_mtx_{};
-
-  /// a mutex for outputting messages
-  std::mutex io_mtx_{};
 
   /// a flag for indicating ready.
   bool is_ready_{false};

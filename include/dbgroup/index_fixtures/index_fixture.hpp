@@ -87,22 +87,6 @@ class IndexFixture : public testing::Test
    * Utility functions
    *##########################################################################*/
 
-  template <class T>
-  void
-  AssertEQ(  //
-      const T &expected,
-      const T &actual,
-      const std::string_view &tag)
-  {
-    if constexpr (std::is_same_v<T, char *>) {
-      ASSERT_STREQ(expected, actual) << tag;
-    } else if constexpr (std::is_same_v<T, uint64_t *>) {
-      ASSERT_EQ(*expected, *actual) << tag;
-    } else {
-      ASSERT_EQ(expected, actual) << tag;
-    }
-  }
-
   void
   PrepareData()
   {
@@ -141,6 +125,10 @@ class IndexFixture : public testing::Test
     }
     return target_ids;
   }
+
+  /*############################################################################
+   * Wrapper functions
+   *##########################################################################*/
 
   auto
   Read(                                      //
@@ -278,7 +266,7 @@ class IndexFixture : public testing::Test
       if (expect_success) {
         ASSERT_TRUE(read_val) << "[Read: payload]";
         if (read_val) {
-          AssertEQ(payloads_.at(pay_id), read_val.value(), "[Read: payload]");
+          AssertEQ<PayComp>(payloads_.at(pay_id), read_val.value(), "[Read: payload]");
         }
       } else {
         ASSERT_FALSE(read_val) << "[Read: payload]";
@@ -322,8 +310,8 @@ class IndexFixture : public testing::Test
       for (; iter; ++iter, ++begin_pos) {
         const auto &[key, payload] = *iter;
         const auto val_id = (write_twice) ? begin_pos + 1 : begin_pos;
-        AssertEQ(keys_.at(begin_pos), key, "[Scan: key]");
-        AssertEQ(payloads_.at(val_id), payload, "[Scan: payload]");
+        AssertEQ<KeyComp>(keys_.at(begin_pos), key, "[Scan: key]");
+        AssertEQ<PayComp>(payloads_.at(val_id), payload, "[Scan: payload]");
         if (HasFatalFailure()) return;
       }
       if (end_ref) {
