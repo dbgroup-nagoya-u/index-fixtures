@@ -24,5 +24,5 @@ function(DBGROUP_ADD_TEST DBGROUP_TEST_TARGET)
 endfunction()
 
 # add unit tests to build targets
-DBGROUP_ADD_TEST("index_fixture_test")
-DBGROUP_ADD_TEST("index_fixture_multi_thread_test")
+DBGROUP_ADD_TEST("sample_test")
+DBGROUP_ADD_TEST("sample_multi_thread_test")

@@ -15,19 +15,22 @@
  */
 
 // the corresponding header
-#include "dbgroup/index_fixtures/index_fixture_multi_thread.hpp"
+// #include "target_index.hpp"
 
 // external libraries
+#include "dbgroup/index_fixtures/index_fixture.hpp"
 #include "gtest/gtest.h"
-
-// local sources
-#include "common.hpp"
 
 namespace dbgroup::index::test
 {
 /*##############################################################################
  * Preparation for typed testing
  *############################################################################*/
+
+template <class Key, class Payload, class Comp>
+struct Index {
+  // dummy struct for index implementations
+};
 
 using TestTargets = ::testing::Types<     //
     IndexInfo<Index, UInt8, Int8>,        // fixed-length keys
@@ -38,12 +41,12 @@ using TestTargets = ::testing::Types<     //
     IndexInfo<Index, Ptr, Ptr>,           // pointer keys/payloads
     IndexInfo<Index, Original, Original>  // user-defined keys/payloads
     >;
-TYPED_TEST_SUITE(IndexMultiThreadFixture, TestTargets);
+TYPED_TEST_SUITE(IndexFixture, TestTargets);
 
 /*##############################################################################
  * Unit test definitions
  *############################################################################*/
 
-#include "dbgroup/index_fixtures/index_fixture_multi_thread_test_definitions.hpp"
+#include "dbgroup/index_fixtures/index_fixture_test_definitions.hpp"
 
 }  // namespace dbgroup::index::test

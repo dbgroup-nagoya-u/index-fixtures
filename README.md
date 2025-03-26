@@ -13,4 +13,4 @@ This repository is a collection of fixtures for testing index implementations.
 
 ## Usage
 
-...WIP.
+...WIP (some sample files are in a `test` directory).
