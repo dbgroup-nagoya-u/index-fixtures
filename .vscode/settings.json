@@ -58,6 +58,7 @@
     "endfunction",
     "googletest",
     "GTEST",
+    "MIMALLOC",
     "STREQ",
     "STREQUAL",
     "Wextra"

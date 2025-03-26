@@ -81,6 +81,12 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
     "The number of executions per a thread."
   )
 
+  option(
+    DBGROUP_TEST_OVERRIDE_MIMALLOC
+    "Override entire memory allocation with mimalloc."
+    OFF
+  )
+
   #----------------------------------------------------------------------------#
   # Configurations
   #----------------------------------------------------------------------------#
@@ -103,6 +109,18 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
     GIT_TAG "74cca72cffec6f26399de115ff658d58ebafdc03"
   )
   FetchContent_MakeAvailable(cpp-utility)
+
+  if(${DBGROUP_TEST_OVERRIDE_MIMALLOC})
+    set(MI_BUILD_SHARED OFF CACHE BOOL "Disable mimalloc's unit tests." FORCE)
+    set(MI_BUILD_OBJECT OFF CACHE BOOL "Disable mimalloc's unit tests." FORCE)
+    set(MI_BUILD_TESTS OFF CACHE BOOL "Disable mimalloc's unit tests." FORCE)
+    FetchContent_Declare(
+      mimalloc
+      GIT_REPOSITORY "https://github.com/microsoft/mimalloc"
+      GIT_TAG "8c532c32c3c96e5ba1f2283e032f69ead8add00f" # v2.1.7
+    )
+    FetchContent_MakeAvailable(mimalloc)
+  endif()
 
   #----------------------------------------------------------------------------#
   # Build targets
@@ -132,6 +150,7 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
     Threads::Threads
     dbgroup::cpp_utility
     GTest::gtest_main
+    $<$<BOOL:${DBGROUP_TEST_OVERRIDE_MIMALLOC}>:mimalloc-static>
   )
 
   #----------------------------------------------------------------------------#
