@@ -59,8 +59,7 @@ class IndexMultiThreadFixture : public testing::Test
   using Payload = typename IndexInfo::Payload::Data;
   using KeyComp = typename IndexInfo::Key::Comp;
   using PayComp = typename IndexInfo::Payload::Comp;
-  using Index_t = typename IndexInfo::Index_t;
-  using ImplStat = typename IndexInfo::ImplStatus;
+  using Index = typename IndexInfo::Index;
   using ScanKey = std::optional<std::tuple<const Key &, size_t, bool>>;
 
  protected:
@@ -216,7 +215,7 @@ class IndexMultiThreadFixture : public testing::Test
   void
   PrepareData()
   {
-    index_ = std::make_unique<Index_t>();
+    index_ = std::make_unique<Index>();
     keys_ = PrepareTestData<Key>(kKeyNum);
     payloads_ = PrepareTestData<Payload>(kThreadNum * 2);
   }
@@ -233,11 +232,11 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const size_t key_id)  //
       -> std::optional<Payload>
   {
-    if constexpr (HasReadOperation<ImplStat>()) {
+    if constexpr (kDisableReadTest) {
+      return std::nullopt;
+    } else {
       const auto &key = keys_.at(key_id);
       return index_->Read(key, GetLength(key));
-    } else {
-      return std::nullopt;
     }
   }
 
@@ -246,10 +245,10 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const ScanKey &begin_key = std::nullopt,
       [[maybe_unused]] const ScanKey &end_key = std::nullopt)
   {
-    if constexpr (HasScanOperation<ImplStat>()) {
-      return index_->Scan(begin_key, end_key);
-    } else {
+    if constexpr (kDisableScanTest) {
       return DummyIter<Key, Payload>{};
+    } else {
+      return index_->Scan(begin_key, end_key);
     }
   }
 
@@ -258,12 +257,12 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const size_t key_id,
       [[maybe_unused]] const size_t pay_id)
   {
-    if constexpr (HasWriteOperation<ImplStat>()) {
+    if constexpr (kDisableWriteTest) {
+      return 0;
+    } else {
       const auto &key = keys_.at(key_id);
       const auto &payload = payloads_.at(pay_id);
       return static_cast<int>(index_->Write(key, payload, GetLength(key), GetLength(payload)));
-    } else {
-      return 0;
     }
   }
 
@@ -272,12 +271,12 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const size_t key_id,
       [[maybe_unused]] const size_t pay_id)
   {
-    if constexpr (HasInsertOperation<ImplStat>()) {
+    if constexpr (kDisableInsertTest) {
+      return 0;
+    } else {
       const auto &key = keys_.at(key_id);
       const auto &payload = payloads_.at(pay_id);
       return static_cast<int>(index_->Insert(key, payload, GetLength(key), GetLength(payload)));
-    } else {
-      return 0;
     }
   }
 
@@ -286,12 +285,12 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const size_t key_id,
       [[maybe_unused]] const size_t pay_id)
   {
-    if constexpr (HasUpdateOperation<ImplStat>()) {
+    if constexpr (kDisableUpdateTest) {
+      return 0;
+    } else {
       const auto &key = keys_.at(key_id);
       const auto &payload = payloads_.at(pay_id);
       return static_cast<int>(index_->Update(key, payload, GetLength(key), GetLength(payload)));
-    } else {
-      return 0;
     }
   }
 
@@ -299,18 +298,20 @@ class IndexMultiThreadFixture : public testing::Test
   Delete(  //
       [[maybe_unused]] const size_t key_id)
   {
-    if constexpr (HasDeleteOperation<ImplStat>()) {
+    if constexpr (kDisableDeleteTest) {
+      return 0;
+    } else {
       const auto &key = keys_.at(key_id);
       return static_cast<int>(index_->Delete(key, GetLength(key)));
-    } else {
-      return 0;
     }
   }
 
   auto
   Bulkload()
   {
-    if constexpr (HasBulkloadOperation<ImplStat>()) {
+    if constexpr (kDisableBulkloadTest) {
+      return 0;
+    } else {
       constexpr size_t kOpsNum = (kExecNum + 1) * kThreadNum;
       std::vector<std::tuple<Key, Payload, size_t, size_t>> entries{};
       entries.reserve(kOpsNum);
@@ -320,8 +321,6 @@ class IndexMultiThreadFixture : public testing::Test
         entries.emplace_back(key, payload, GetLength(key), GetLength(payload));
       }
       return index_->Bulkload(entries, kThreadNum);
-    } else {
-      return 0;
     }
   }
 
@@ -420,7 +419,7 @@ class IndexMultiThreadFixture : public testing::Test
       const bool is_update,
       const AccessPattern pattern)
   {
-    if constexpr (!HasReadOperation<ImplStat>()) {
+    if constexpr (kDisableReadTest) {
       return;
     }
 
@@ -451,7 +450,7 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const bool expect_success,
       [[maybe_unused]] const bool is_update)
   {
-    if constexpr (!HasScanOperation<ImplStat>()) {
+    if constexpr (kDisableScanTest) {
       return;
     }
 
@@ -591,8 +590,8 @@ class IndexMultiThreadFixture : public testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
-    if (!HasWriteOperation<ImplStat>()                        //
-        || (with_delete && !HasDeleteOperation<ImplStat>()))  //
+    if (kDisableWriteTest                        //
+        || (with_delete && kDisableDeleteTest))  //
     {
       GTEST_SKIP();
     }
@@ -615,8 +614,8 @@ class IndexMultiThreadFixture : public testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
-    if (!HasInsertOperation<ImplStat>()                       //
-        || (with_delete && !HasDeleteOperation<ImplStat>()))  //
+    if (kDisableInsertTest                       //
+        || (with_delete && kDisableDeleteTest))  //
     {
       GTEST_SKIP();
     }
@@ -641,9 +640,8 @@ class IndexMultiThreadFixture : public testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
-    if (!HasUpdateOperation<ImplStat>()  //
-        || (with_write && !HasWriteOperation<ImplStat>())
-        || (with_delete && !HasDeleteOperation<ImplStat>()))  //
+    if (kDisableUpdateTest                                                            //
+        || (with_write && kDisableWriteTest) || (with_delete && kDisableDeleteTest))  //
     {
       GTEST_SKIP();
     }
@@ -667,8 +665,8 @@ class IndexMultiThreadFixture : public testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
-    if (!HasDeleteOperation<ImplStat>()                     //
-        || (with_write && !HasWriteOperation<ImplStat>()))  //
+    if (kDisableDeleteTest                     //
+        || (with_write && kDisableWriteTest))  //
     {
       GTEST_SKIP();
     }
@@ -694,10 +692,10 @@ class IndexMultiThreadFixture : public testing::Test
     constexpr size_t kScanThread = kThreadNum * 3 / 4;
     std::atomic_size_t counter{};
 
-    if (!HasWriteOperation<ImplStat>()      //
-        || !HasDeleteOperation<ImplStat>()  //
-        || !HasScanOperation<ImplStat>()    //
-        || (kThreadNum % 4) != 0)           //
+    if (kDisableWriteTest          //
+        || kDisableDeleteTest      //
+        || kDisableScanTest        //
+        || (kThreadNum % 4) != 0)  //
     {
       GTEST_SKIP();
     }
@@ -804,11 +802,11 @@ class IndexMultiThreadFixture : public testing::Test
       const WriteOperation write_ops,
       const AccessPattern pattern)
   {
-    if (!HasBulkloadOperation<ImplStat>()                              //
-        || (write_ops == kWrite && !HasWriteOperation<ImplStat>())     //
-        || (write_ops == kInsert && !HasInsertOperation<ImplStat>())   //
-        || (write_ops == kUpdate && !HasUpdateOperation<ImplStat>())   //
-        || (write_ops == kDelete && !HasDeleteOperation<ImplStat>()))  //
+    if (kDisableBulkloadTest                              //
+        || (write_ops == kWrite && kDisableWriteTest)     //
+        || (write_ops == kInsert && kDisableInsertTest)   //
+        || (write_ops == kUpdate && kDisableUpdateTest)   //
+        || (write_ops == kDelete && kDisableDeleteTest))  //
     {
       GTEST_SKIP();
     }
@@ -860,7 +858,7 @@ class IndexMultiThreadFixture : public testing::Test
   std::vector<Payload> payloads_{};
 
   /// an index for testing
-  std::unique_ptr<Index_t> index_{nullptr};
+  std::unique_ptr<Index> index_{nullptr};
 
   /// a mutex for notifying worker threads.
   std::mutex x_mtx_{};

@@ -166,15 +166,11 @@ constexpr bool kWithDelete = true;
  * Global utility classes
  *############################################################################*/
 
-template <template <class K, class V, class C> class IndexType,
-          class KeyType,
-          class PayloadType,
-          class ImplementationStatus = void>
+template <template <class K, class V, class C> class IndexT, class KeyT, class PayloadT>
 struct IndexInfo {
-  using Key = KeyType;
-  using Payload = PayloadType;
-  using Index_t = IndexType<typename Key::Data, typename Payload::Data, typename Key::Comp>;
-  using ImplStatus = ImplementationStatus;
+  using Key = KeyT;
+  using Payload = PayloadT;
+  using Index = IndexT<typename Key::Data, typename Payload::Data, typename Key::Comp>;
 };
 
 struct VarData {
@@ -359,61 +355,47 @@ IsVarLen()  //
  * Template functions for disabling tests of each operation
  *############################################################################*/
 
-template <class ImplStat>
-constexpr auto
-HasReadOperation()  //
-    -> bool
-{
-  return true;
-}
+#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_READ_TEST
+constexpr bool kDisableReadTest = true;
+#else
+constexpr bool kDisableReadTest = false;
+#endif
 
-template <class ImplStat>
-constexpr auto
-HasScanOperation()  //
-    -> bool
-{
-  return true;
-}
+#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_SCAN_TEST
+constexpr bool kDisableScanTest = true;
+#else
+constexpr bool kDisableScanTest = false;
+#endif
 
-template <class ImplStat>
-constexpr auto
-HasWriteOperation()  //
-    -> bool
-{
-  return true;
-}
+#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_WRITE_TEST
+constexpr bool kDisableWriteTest = true;
+#else
+constexpr bool kDisableWriteTest = false;
+#endif
 
-template <class ImplStat>
-constexpr auto
-HasInsertOperation()  //
-    -> bool
-{
-  return true;
-}
+#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_INSERT_TEST
+constexpr bool kDisableInsertTest = true;
+#else
+constexpr bool kDisableInsertTest = false;
+#endif
 
-template <class ImplStat>
-constexpr auto
-HasUpdateOperation()  //
-    -> bool
-{
-  return true;
-}
+#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_UPDATE_TEST
+constexpr bool kDisableUpdateTest = true;
+#else
+constexpr bool kDisableUpdateTest = false;
+#endif
 
-template <class ImplStat>
-constexpr auto
-HasDeleteOperation()  //
-    -> bool
-{
-  return true;
-}
+#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_DELETE_TEST
+constexpr bool kDisableDeleteTest = true;
+#else
+constexpr bool kDisableDeleteTest = false;
+#endif
 
-template <class ImplStat>
-constexpr auto
-HasBulkloadOperation()  //
-    -> bool
-{
-  return true;
-}
+#ifdef DBGROUP_INDEX_FIXTURES_DISABLE_BULKLOAD_TEST
+constexpr bool kDisableBulkloadTest = true;
+#else
+constexpr bool kDisableBulkloadTest = false;
+#endif
 
 }  // namespace dbgroup::index::test
 

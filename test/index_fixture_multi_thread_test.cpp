@@ -29,14 +29,14 @@ namespace dbgroup::index::test
  * Preparation for typed testing
  *############################################################################*/
 
-using TestTargets = ::testing::Types<                //
-    IndexInfo<Index, UInt8, Int8, ImplState>,        // fixed-length keys
-    IndexInfo<Index, UInt4, Int8, ImplState>,        // small keys
-    IndexInfo<Index, UInt8, UInt4, ImplState>,       // small payloads
-    IndexInfo<Index, UInt4, UInt4, ImplState>,       // small keys/payloads
-    IndexInfo<Index, Var, Var, ImplState>,           // variable-length keys/payloads
-    IndexInfo<Index, Ptr, Ptr, ImplState>,           // pointer keys/payloads
-    IndexInfo<Index, Original, Original, ImplState>  // user-defined keys/payloads
+using TestTargets = ::testing::Types<     //
+    IndexInfo<Index, UInt8, Int8>,        // fixed-length keys
+    IndexInfo<Index, UInt4, Int8>,        // small keys
+    IndexInfo<Index, UInt8, UInt4>,       // small payloads
+    IndexInfo<Index, UInt4, UInt4>,       // small keys/payloads
+    IndexInfo<Index, Var, Var>,           // variable-length keys/payloads
+    IndexInfo<Index, Ptr, Ptr>,           // pointer keys/payloads
+    IndexInfo<Index, Original, Original>  // user-defined keys/payloads
     >;
 TYPED_TEST_SUITE(IndexMultiThreadFixture, TestTargets);
 
