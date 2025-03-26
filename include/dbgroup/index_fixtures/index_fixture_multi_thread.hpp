@@ -402,7 +402,7 @@ class IndexMultiThreadFixture : public testing::Test
         if (expect_success) {
           AssertEQ<RCComp>(Insert(id, pay_id), kSuccess, "Insert: RC");
         } else {
-          AssertEQ<RCComp>(Insert(id, pay_id), kKeyNotExist, "Insert: RC");
+          AssertEQ<RCComp>(Insert(id, pay_id), kKeyExist, "Insert: RC");
         }
       }
     };
@@ -425,7 +425,7 @@ class IndexMultiThreadFixture : public testing::Test
         if (expect_success) {
           AssertEQ<RCComp>(Update(id, pay_id), kSuccess, "Update: RC");
         } else {
-          AssertEQ<RCComp>(Update(id, pay_id), kKeyExist, "Update: RC");
+          AssertEQ<RCComp>(Update(id, pay_id), kKeyNotExist, "Update: RC");
         }
       }
     };
@@ -447,7 +447,7 @@ class IndexMultiThreadFixture : public testing::Test
         if (expect_success) {
           AssertEQ<RCComp>(Delete(id), kSuccess, "Delete: RC");
         } else {
-          AssertEQ<RCComp>(Delete(id), kKeyExist, "Delete: RC");
+          AssertEQ<RCComp>(Delete(id), kKeyNotExist, "Delete: RC");
         }
       }
     };
