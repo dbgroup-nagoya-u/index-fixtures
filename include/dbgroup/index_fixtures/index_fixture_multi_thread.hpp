@@ -84,6 +84,7 @@ class IndexMultiThreadFixture : public testing::Test
   void
   SetUp() override
   {
+    ready_num_ = 0;
     is_ready_ = false;
     no_failure_ = true;
   }
@@ -116,61 +117,58 @@ class IndexMultiThreadFixture : public testing::Test
   static constexpr auto
   GetTargetID(  //
       const size_t i,
-      const size_t worker_id)  //
+      const size_t w_id)  //
       -> size_t
   {
     assert(i < kExecNum);
-    assert(worker_id < kWorkerNum);
-    return kWorkerNum * i + worker_id + (kThreadNum * kNodeID);
+    assert(w_id < kWorkerNum);
+    return kWorkerNum * i + w_id;
   }
 
   [[nodiscard]] auto
-  CreateTargetIDs(  //
+  CreateIDs(  //
       const size_t w_id,
       const AccessPattern pattern)  //
       -> std::vector<size_t>
   {
     std::vector<size_t> target_ids{};
-    {
-      std::shared_lock guard{s_mtx_};
-
-      target_ids.reserve(kExecNum);
-      for (size_t i = 0; i < kExecNum; ++i) {
-        target_ids.emplace_back(GetTargetID(i, w_id));
-      }
-
-      if (pattern == kReverse) {
-        std::reverse(target_ids.begin(), target_ids.end());
-      } else if (pattern == kRandom) {
-        std::mt19937_64 rand_engine{kRandomSeed};
-        std::shuffle(target_ids.begin(), target_ids.end(), rand_engine);
-      }
+    target_ids.reserve(kExecNum);
+    for (size_t i = 0; i < kExecNum; ++i) {
+      target_ids.emplace_back(GetTargetID(i, w_id));
     }
 
+    if (pattern == kReverse) {
+      std::reverse(target_ids.begin(), target_ids.end());
+    } else if (pattern == kRandom) {
+      std::mt19937_64 rand_engine{kRandomSeed};
+      std::shuffle(target_ids.begin(), target_ids.end(), rand_engine);
+    }
+
+    ++ready_num_;
     std::unique_lock lock{x_mtx_};
     cond_.wait(lock, [this] { return is_ready_; });
+
     return target_ids;
   }
 
   [[nodiscard]] auto
-  CreateTargetIDsForConcurrentSMOs()  //
+  CreateIDsForConcurrentSMOs()  //
       -> std::vector<size_t>
   {
     std::mt19937_64 rng{kRandomSeed};
     std::uniform_int_distribution<size_t> exec_dist{0, kExecNum - 1};
     std::uniform_int_distribution<size_t> worker_dist{0, kThreadNum / 2 - 1};
-    std::vector<size_t> target_ids{};
-    {
-      std::shared_lock guard{s_mtx_};
 
-      target_ids.reserve(kExecNum);
-      for (size_t i = 0; i < kExecNum; ++i) {
-        target_ids.emplace_back(GetTargetID(exec_dist(rng), worker_dist(rng)));
-      }
+    std::vector<size_t> target_ids{};
+    target_ids.reserve(kExecNum);
+    for (size_t i = 0; i < kExecNum; ++i) {
+      target_ids.emplace_back(GetTargetID(exec_dist(rng), worker_dist(rng)));
     }
 
+    ++ready_num_;
     std::unique_lock lock{x_mtx_};
     cond_.wait(lock, [this] { return is_ready_; });
+
     return target_ids;
   }
 
@@ -181,25 +179,32 @@ class IndexMultiThreadFixture : public testing::Test
     std::vector<std::thread> threads{};
     for (size_t i = 0; i < kThreadNum; ++i) {
       threads.emplace_back(
-          [&](const size_t id) {
+          [&](const size_t w_id) {
             try {
-              func(id);
+              func(w_id);
             } catch ([[maybe_unused]] const std::exception &e) {
               no_failure_ = false;
               ADD_FAILURE();
             }
           },
-          i);
+          i + kThreadNum * kNodeID);
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds{kWaitForThreadCreation});
-    {
-      std::lock_guard guard{s_mtx_};
-      is_ready_ = true;
-      cond_.notify_all();
+    while (ready_num_ < kThreadNum) {
+      std::this_thread::sleep_for(std::chrono::milliseconds{1});
     }
+    {
+      std::lock_guard guard{x_mtx_};
+      is_ready_ = true;
+    }
+    cond_.notify_all();
     for (auto &&t : threads) {
       t.join();
+    }
+    ready_num_ = 0;
+
+    if constexpr (kNodeNum > 1) {
+      index_->Barrier();
     }
   }
 
@@ -323,6 +328,7 @@ class IndexMultiThreadFixture : public testing::Test
     auto mt_worker = [&](const size_t w_id) -> void {
       size_t begin_id = kExecNum * w_id;
       size_t end_id = kExecNum * (w_id + 1);
+      ++ready_num_;
 
       for (size_t i = begin_id; i < end_id; ++i) {
         if (!no_failure_) break;
@@ -355,10 +361,10 @@ class IndexMultiThreadFixture : public testing::Test
       size_t begin_id = kExecNum * w_id;
       const auto &begin_k = keys_.at(begin_id);
       const auto &begin_key = std::make_tuple(begin_k, GetLength(begin_k), kRangeClosed);
-
       size_t end_id = kExecNum * (w_id + 1);
       const auto &end_k = keys_.at(end_id);
       const auto &end_key = std::make_tuple(end_k, GetLength(end_k), kRangeOpened);
+      ++ready_num_;
 
       auto &&iter = Scan(begin_key, end_key);
       if (expect_success) {
@@ -387,7 +393,7 @@ class IndexMultiThreadFixture : public testing::Test
     if (!no_failure_) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
-      for (const auto id : CreateTargetIDs(w_id, pattern)) {
+      for (const auto id : CreateIDs(w_id, pattern)) {
         if (!no_failure_) return;
         const auto pay_id = (is_update) ? w_id + kWorkerNum : w_id;
         AssertEQ<RCComp>(Write(id, pay_id), kSuccess, "Write: RC");
@@ -407,7 +413,7 @@ class IndexMultiThreadFixture : public testing::Test
     if (!no_failure_) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
-      for (const auto id : CreateTargetIDs(w_id, pattern)) {
+      for (const auto id : CreateIDs(w_id, pattern)) {
         if (!no_failure_) return;
         const auto pay_id = (is_update) ? w_id + kWorkerNum : w_id;
         if (expect_success) {
@@ -430,7 +436,7 @@ class IndexMultiThreadFixture : public testing::Test
     if (!no_failure_) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
-      for (const auto id : CreateTargetIDs(w_id, pattern)) {
+      for (const auto id : CreateIDs(w_id, pattern)) {
         if (!no_failure_) return;
         const auto pay_id = w_id + kWorkerNum;
         if (expect_success) {
@@ -453,7 +459,7 @@ class IndexMultiThreadFixture : public testing::Test
     if (!no_failure_) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
-      for (const auto id : CreateTargetIDs(w_id, pattern)) {
+      for (const auto id : CreateIDs(w_id, pattern)) {
         if (!no_failure_) return;
         if (expect_success) {
           AssertEQ<RCComp>(Delete(id), kSuccess, "Delete: RC");
@@ -596,7 +602,7 @@ class IndexMultiThreadFixture : public testing::Test
     }
 
     auto read_proc = [&]() -> void {
-      for (const auto id : CreateTargetIDsForConcurrentSMOs()) {
+      for (const auto id : CreateIDsForConcurrentSMOs()) {
         if (!no_failure_) return;
         const auto &read_val = Read(id);
         if (read_val) {
@@ -610,6 +616,7 @@ class IndexMultiThreadFixture : public testing::Test
       if constexpr (IsVarLenData<Key>()) {
         prev_key = std::bit_cast<Key>(::operator new(kVarDataLength));
       }
+      ++ready_num_;
       while (counter < kReadThread) {
         if constexpr (IsVarLenData<Key>()) {
           memcpy(prev_key, keys_.at(0), GetLength<Key>(keys_.at(0)));
@@ -633,7 +640,7 @@ class IndexMultiThreadFixture : public testing::Test
     };
 
     auto write_proc = [&](const size_t w_id) -> void {
-      for (const auto id : CreateTargetIDs(w_id, kRandom)) {
+      for (const auto id : CreateIDs(w_id, kRandom)) {
         if (!no_failure_) return;
         AssertEQ<RCComp>(Write(id, w_id), kSuccess, "Write: RC");
       }
@@ -641,7 +648,7 @@ class IndexMultiThreadFixture : public testing::Test
     };
 
     auto delete_proc = [&](const size_t w_id) -> void {
-      for (const auto id : CreateTargetIDs(w_id, kRandom)) {
+      for (const auto id : CreateIDs(w_id, kRandom)) {
         if (!no_failure_) return;
         AssertEQ<RCComp>(Delete(id), kSuccess, "Delete: RC");
       }
@@ -743,28 +750,28 @@ class IndexMultiThreadFixture : public testing::Test
    * Internal member variables
    *##########################################################################*/
 
-  /// a flag for indicating that there is no assertion.
+  /// @brief A flag for indicating that there is no assertion.
   std::atomic_bool no_failure_{true};
 
-  /// actual keys
+  /// @brief Actual keys
   std::vector<Key> keys_{};
 
-  /// actual payloads
+  /// @brief Actual payloads
   std::vector<Payload> payloads_{};
 
-  /// an index for testing
+  /// @brief An index for testing
   std::unique_ptr<Index> index_{nullptr};
 
-  /// a mutex for notifying worker threads.
+  /// @brief The number of threads that are ready for testing.
+  std::atomic_size_t ready_num_{};
+
+  /// @brief A mutex for notifying worker threads.
   std::mutex x_mtx_{};
 
-  /// a shared mutex for blocking main process.
-  std::shared_mutex s_mtx_{};
-
-  /// a flag for indicating ready.
+  /// @brief A flag for indicating ready.
   bool is_ready_{false};
 
-  /// a condition variable for notifying worker threads.
+  /// @brief A condition variable for notifying worker threads.
   std::condition_variable cond_{};
 };
 
