@@ -11,6 +11,11 @@ This repository is a collection of fixtures for testing index implementations.
 - `DBGROUP_TEST_RANDOM_SEED`: A fixed seed value to reproduce unit tests (default `0`).
 - `DBGROUP_TEST_OVERRIDE_MIMALLOC`: Override entire memory allocation with mimalloc (default `OFF`).
 
+### Additional Build Options for Distributed Indexes
+
+- `DBGROUP_TEST_DISTRIBUTED_INDEX_NODE_NUM`: The number of servers in a cluster (default `1`).
+- `DBGROUP_TEST_DISTRIBUTED_INDEX_NODE_ID`: The ID of this server in a cluster (default `0`).
+
 ## Usage
 
 ...WIP (some sample files are in a `test` directory).

@@ -87,6 +87,18 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
     OFF
   )
 
+  set(
+    DBGROUP_TEST_DISTRIBUTED_INDEX_NODE_NUM
+    "1" CACHE STRING
+    "The number of servers in a cluster (for distributed indexes)."
+  )
+
+  set(
+    DBGROUP_TEST_DISTRIBUTED_INDEX_NODE_ID
+    "0" CACHE STRING
+    "The ID of this server in a cluster (for distributed indexes)."
+  )
+
   #----------------------------------------------------------------------------#
   # Configurations
   #----------------------------------------------------------------------------#
@@ -142,6 +154,8 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
     DBGROUP_TEST_THREAD_NUM=${DBGROUP_TEST_THREAD_NUM}
     DBGROUP_TEST_RANDOM_SEED=${DBGROUP_TEST_RANDOM_SEED}
     DBGROUP_TEST_EXEC_NUM=${DBGROUP_TEST_EXEC_NUM}
+    DBGROUP_TEST_DISTRIBUTED_INDEX_NODE_NUM=${DBGROUP_TEST_DISTRIBUTED_INDEX_NODE_NUM}
+    DBGROUP_TEST_DISTRIBUTED_INDEX_NODE_ID=${DBGROUP_TEST_DISTRIBUTED_INDEX_NODE_ID}
   )
   target_include_directories(${PROJECT_NAME} INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"

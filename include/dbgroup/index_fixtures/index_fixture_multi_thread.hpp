@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <atomic>
 #include <bit>
+#include <cassert>
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
@@ -69,8 +70,11 @@ class IndexMultiThreadFixture : public testing::Test
    * Internal constants
    *##########################################################################*/
 
-  static constexpr size_t kThreadNum = DBGROUP_TEST_THREAD_NUM;
-  static constexpr size_t kKeyNum = (kExecNum + 2) * kThreadNum;
+  static constexpr size_t kThreadNum = (DBGROUP_TEST_THREAD_NUM);
+  static constexpr size_t kNodeNum = (DBGROUP_TEST_DISTRIBUTED_INDEX_NODE_NUM);
+  static constexpr size_t kWorkerNum = kThreadNum * kNodeNum;
+  static constexpr size_t kKeyNum = kExecNum * kWorkerNum;
+  static constexpr size_t kNodeID = (DBGROUP_TEST_DISTRIBUTED_INDEX_NODE_ID);
   static constexpr size_t kWaitForThreadCreation = 100;
 
   /*############################################################################
@@ -99,7 +103,7 @@ class IndexMultiThreadFixture : public testing::Test
   {
     index_ = std::make_unique<Index>();
     keys_ = PrepareTestData<Key>(kKeyNum);
-    payloads_ = PrepareTestData<Payload>(kThreadNum * 2);
+    payloads_ = PrepareTestData<Payload>(kWorkerNum * 2);
   }
 
   void
@@ -107,6 +111,17 @@ class IndexMultiThreadFixture : public testing::Test
   {
     ReleaseTestData(keys_);
     ReleaseTestData(payloads_);
+  }
+
+  static constexpr auto
+  GetTargetID(  //
+      const size_t i,
+      const size_t worker_id)  //
+      -> size_t
+  {
+    assert(i < kExecNum);
+    assert(worker_id < kWorkerNum);
+    return kWorkerNum * i + worker_id + (kThreadNum * kNodeID);
   }
 
   [[nodiscard]] auto
@@ -120,25 +135,20 @@ class IndexMultiThreadFixture : public testing::Test
       std::shared_lock guard{s_mtx_};
 
       target_ids.reserve(kExecNum);
-      if (pattern == kReverse) {
-        for (size_t i = kExecNum; i > 0; --i) {
-          target_ids.emplace_back(kThreadNum * i + w_id);
-        }
-      } else {
-        for (size_t i = 1; i <= kExecNum; ++i) {
-          target_ids.emplace_back(kThreadNum * i + w_id);
-        }
+      for (size_t i = 0; i < kExecNum; ++i) {
+        target_ids.emplace_back(GetTargetID(i, w_id));
       }
 
-      if (pattern == kRandom) {
+      if (pattern == kReverse) {
+        std::reverse(target_ids.begin(), target_ids.end());
+      } else if (pattern == kRandom) {
         std::mt19937_64 rand_engine{kRandomSeed};
         std::shuffle(target_ids.begin(), target_ids.end(), rand_engine);
       }
     }
-    {
-      std::unique_lock lock{x_mtx_};
-      cond_.wait(lock, [this] { return is_ready_; });
-    }
+
+    std::unique_lock lock{x_mtx_};
+    cond_.wait(lock, [this] { return is_ready_; });
     return target_ids;
   }
 
@@ -147,21 +157,20 @@ class IndexMultiThreadFixture : public testing::Test
       -> std::vector<size_t>
   {
     std::mt19937_64 rng{kRandomSeed};
-    std::uniform_int_distribution<size_t> exec_dist{1, kExecNum};
-    std::uniform_int_distribution<size_t> thread_dist{0, kThreadNum / 2 - 1};
+    std::uniform_int_distribution<size_t> exec_dist{0, kExecNum - 1};
+    std::uniform_int_distribution<size_t> worker_dist{0, kThreadNum / 2 - 1};
     std::vector<size_t> target_ids{};
     {
       std::shared_lock guard{s_mtx_};
 
       target_ids.reserve(kExecNum);
       for (size_t i = 0; i < kExecNum; ++i) {
-        target_ids.emplace_back(kThreadNum * exec_dist(rng) + thread_dist(rng));
+        target_ids.emplace_back(GetTargetID(exec_dist(rng), worker_dist(rng)));
       }
     }
 
     std::unique_lock lock{x_mtx_};
     cond_.wait(lock, [this] { return is_ready_; });
-
     return target_ids;
   }
 
@@ -289,12 +298,11 @@ class IndexMultiThreadFixture : public testing::Test
     if constexpr (kDisableBulkloadTest) {
       return kKeyNotExist;
     } else {
-      constexpr size_t kOpsNum = (kExecNum + 1) * kThreadNum;
       std::vector<std::tuple<Key, Payload, size_t, size_t>> entries{};
-      entries.reserve(kOpsNum);
-      for (size_t i = kThreadNum; i < kOpsNum; ++i) {
+      entries.reserve(kKeyNum);
+      for (size_t i = 0; i < kKeyNum; ++i) {
         const auto &key = keys_.at(i);
-        const auto &payload = payloads_.at(i % kThreadNum);
+        const auto &payload = payloads_.at(i % kWorkerNum);
         entries.emplace_back(key, payload, GetLength(key), GetLength(payload));
       }
       return index_->Bulkload(entries, kThreadNum);
@@ -308,19 +316,22 @@ class IndexMultiThreadFixture : public testing::Test
   void
   VerifyRead(  //
       const bool expect_success,
-      const bool is_update,
-      const AccessPattern pattern)
+      const bool is_update)
   {
     if (kDisableReadTest || !no_failure_) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
-      for (const auto id : CreateTargetIDs(w_id, pattern)) {
+      size_t begin_id = kExecNum * w_id;
+      size_t end_id = kExecNum * (w_id + 1);
+
+      for (size_t i = begin_id; i < end_id; ++i) {
         if (!no_failure_) break;
-        const auto &read_val = Read(id);
+        const auto &read_val = Read(i);
         if (expect_success) {
           AssertTrue(static_cast<bool>(read_val), "Read: RC");
           if (read_val) {
-            const auto expected_val = payloads_.at((is_update) ? w_id + kThreadNum : w_id);
+            const auto val_id = i % kWorkerNum + (is_update ? kWorkerNum : 0);
+            const auto expected_val = payloads_.at(val_id);
             AssertEQ<PayComp>(expected_val, read_val.value(), "Read: payload");
           }
         } else {
@@ -341,7 +352,7 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableScanTest || !no_failure_) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
-      size_t begin_id = kThreadNum + kExecNum * w_id;
+      size_t begin_id = kExecNum * w_id;
       const auto &begin_k = keys_.at(begin_id);
       const auto &begin_key = std::make_tuple(begin_k, GetLength(begin_k), kRangeClosed);
 
@@ -354,7 +365,7 @@ class IndexMultiThreadFixture : public testing::Test
         for (; iter; ++iter, ++begin_id) {
           if (!no_failure_) return;
           const auto key_id = begin_id;
-          const auto val_id = (is_update) ? key_id % kThreadNum + kThreadNum : key_id % kThreadNum;
+          const auto val_id = key_id % kWorkerNum + (is_update ? kWorkerNum : 0);
           const auto &[key, payload] = *iter;
           AssertEQ<KeyComp>(keys_.at(key_id), key, "Scan: key");
           AssertEQ<PayComp>(payloads_.at(val_id), payload, "Scan: payload");
@@ -378,7 +389,7 @@ class IndexMultiThreadFixture : public testing::Test
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
         if (!no_failure_) return;
-        const auto pay_id = (is_update) ? w_id + kThreadNum : w_id;
+        const auto pay_id = (is_update) ? w_id + kWorkerNum : w_id;
         AssertEQ<RCComp>(Write(id, pay_id), kSuccess, "Write: RC");
       }
     };
@@ -398,7 +409,7 @@ class IndexMultiThreadFixture : public testing::Test
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
         if (!no_failure_) return;
-        const auto pay_id = (is_update) ? w_id + kThreadNum : w_id;
+        const auto pay_id = (is_update) ? w_id + kWorkerNum : w_id;
         if (expect_success) {
           AssertEQ<RCComp>(Insert(id, pay_id), kSuccess, "Insert: RC");
         } else {
@@ -421,7 +432,7 @@ class IndexMultiThreadFixture : public testing::Test
     auto mt_worker = [&](const size_t w_id) -> void {
       for (const auto id : CreateTargetIDs(w_id, pattern)) {
         if (!no_failure_) return;
-        const auto pay_id = w_id + kThreadNum;
+        const auto pay_id = w_id + kWorkerNum;
         if (expect_success) {
           AssertEQ<RCComp>(Update(id, pay_id), kSuccess, "Update: RC");
         } else {
@@ -485,7 +496,7 @@ class IndexMultiThreadFixture : public testing::Test
     VerifyWrite(!kWriteTwice, pattern);
     if (with_delete) VerifyDelete(kExpectSuccess, pattern);
     if (write_twice) VerifyWrite(kWriteTwice, pattern);
-    VerifyRead(kExpectSuccess, write_twice, pattern);
+    VerifyRead(kExpectSuccess, write_twice);
     VerifyScan(kExpectSuccess, write_twice);
 
     ReleaseTestData(keys_);
@@ -512,7 +523,7 @@ class IndexMultiThreadFixture : public testing::Test
     VerifyInsert(kExpectSuccess, !kWriteTwice, pattern);
     if (with_delete) VerifyDelete(kExpectSuccess, pattern);
     if (write_twice) VerifyInsert(with_delete, write_twice, pattern);
-    VerifyRead(expect_success, is_updated, pattern);
+    VerifyRead(expect_success, is_updated);
     VerifyScan(expect_success, is_updated);
 
     DestroyData();
@@ -537,7 +548,7 @@ class IndexMultiThreadFixture : public testing::Test
     if (with_write) VerifyWrite(!kWriteTwice, pattern);
     if (with_delete) VerifyDelete(with_write, pattern);
     VerifyUpdate(expect_success, pattern);
-    VerifyRead(expect_success, kWriteTwice, pattern);
+    VerifyRead(expect_success, kWriteTwice);
     VerifyScan(expect_success, kWriteTwice);
 
     DestroyData();
@@ -562,7 +573,7 @@ class IndexMultiThreadFixture : public testing::Test
     if (with_write) VerifyWrite(!kWriteTwice, pattern);
     if (with_delete) VerifyDelete(with_write, pattern);
     VerifyDelete(expect_success, pattern);
-    VerifyRead(kExpectFailed, !kWriteTwice, pattern);
+    VerifyRead(kExpectFailed, !kWriteTwice);
     VerifyScan(kExpectFailed, !kWriteTwice);
 
     DestroyData();
@@ -722,7 +733,7 @@ class IndexMultiThreadFixture : public testing::Test
       default:
         break;
     }
-    VerifyRead(expect_success, is_updated, pattern);
+    VerifyRead(expect_success, is_updated);
     VerifyScan(expect_success, is_updated);
 
     DestroyData();
