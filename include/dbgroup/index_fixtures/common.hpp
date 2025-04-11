@@ -38,7 +38,7 @@ namespace dbgroup::index
 
 template <>
 constexpr auto
-IsVarLenData<char *>()  //
+IsVarLenData<char *>() noexcept  //
     -> bool
 {
   return true;
@@ -64,9 +64,9 @@ enum WriteOperation {
   kWithoutWrite,
 };
 
-constexpr size_t kExecNum = (DBGROUP_TEST_EXEC_NUM);
+constexpr size_t kExecNum = DBGROUP_TEST_EXEC_NUM;
 
-constexpr size_t kRandomSeed = (DBGROUP_TEST_RANDOM_SEED);
+constexpr size_t kRandomSeed = DBGROUP_TEST_RANDOM_SEED;
 
 constexpr size_t kVarDataLength = 18;
 
@@ -149,22 +149,22 @@ class MyClass
   constexpr MyClass() : data{}, control_bits{0} {}
 
   constexpr explicit MyClass(  //
-      const uint64_t val)
+      const uint64_t val) noexcept
       : data{val}, control_bits{0}
   {
   }
 
   ~MyClass() = default;
 
-  constexpr MyClass(const MyClass &) = default;
-  constexpr MyClass(MyClass &&) = default;
+  constexpr MyClass(const MyClass &) noexcept = default;
+  constexpr MyClass(MyClass &&) noexcept = default;
 
-  constexpr auto operator=(const MyClass &) -> MyClass & = default;
-  constexpr auto operator=(MyClass &&) -> MyClass & = default;
+  constexpr auto operator=(const MyClass &) noexcept -> MyClass & = default;
+  constexpr auto operator=(MyClass &&) noexcept -> MyClass & = default;
 
   constexpr auto
-  operator=(                 //
-      const uint64_t value)  //
+  operator=(                          //
+      const uint64_t value) noexcept  //
       -> MyClass &
   {
     data = value;
@@ -172,16 +172,16 @@ class MyClass
   }
 
   constexpr auto
-  operator<(                      //
-      const MyClass &comp) const  //
+  operator<(                               //
+      const MyClass &comp) const noexcept  //
       -> bool
   {
     return data < comp.data;
   }
 
   constexpr auto
-  operator==(                     //
-      const MyClass &comp) const  //
+  operator==(                              //
+      const MyClass &comp) const noexcept  //
       -> bool
   {
     return data == comp.data;
@@ -198,13 +198,13 @@ struct VarData {
 template <class Key, class Payload>
 struct DummyIter {
   constexpr explicit
-  operator bool()
+  operator bool() noexcept
   {
     return false;
   }
 
   constexpr auto
-  operator*() const  //
+  operator*() const noexcept  //
       -> std::pair<Key, Payload>
   {
     return {Key{}, Payload{}};
@@ -247,7 +247,7 @@ struct Ptr {
     constexpr auto
     operator()(  //
         const uint64_t *a,
-        const uint64_t *b) const  //
+        const uint64_t *b) const noexcept  //
         -> bool
     {
       if (a == nullptr) return false;
@@ -283,7 +283,7 @@ struct RCComp {
   constexpr auto
   operator()(  //
       const ReturnCode &lhs,
-      const ReturnCode &rhs) const  //
+      const ReturnCode &rhs) const noexcept  //
       -> bool
   {
     return lhs < rhs;
@@ -296,8 +296,8 @@ struct RCComp {
 
 template <class T>
 auto
-GetLength(          //
-    const T &data)  //
+GetLength(                   //
+    const T &data) noexcept  //
     -> size_t
 {
   if constexpr (std::is_same_v<T, char *>) {
