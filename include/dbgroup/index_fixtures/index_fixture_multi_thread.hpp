@@ -145,9 +145,9 @@ class IndexMultiThreadFixture : public testing::Test
     }
 
     ++ready_num_;
-    std::unique_lock lock{x_mtx_};
-    cond_.wait(lock, [this] { return is_ready_; });
-
+    while (!is_ready_) {
+      std::this_thread::yield();
+    }
     return target_ids;
   }
 
@@ -166,9 +166,9 @@ class IndexMultiThreadFixture : public testing::Test
     }
 
     ++ready_num_;
-    std::unique_lock lock{x_mtx_};
-    cond_.wait(lock, [this] { return is_ready_; });
-
+    while (!is_ready_) {
+      std::this_thread::yield();
+    }
     return target_ids;
   }
 
@@ -191,13 +191,10 @@ class IndexMultiThreadFixture : public testing::Test
     }
 
     while (ready_num_ < kThreadNum) {
-      std::this_thread::sleep_for(std::chrono::milliseconds{1});
+      std::this_thread::yield();
     }
-    {
-      std::lock_guard guard{x_mtx_};
-      is_ready_ = true;
-    }
-    cond_.notify_all();
+    is_ready_ = true;
+
     for (auto &&t : threads) {
       t.join();
     }
@@ -778,14 +775,8 @@ class IndexMultiThreadFixture : public testing::Test
   /// @brief The number of threads that are ready for testing.
   std::atomic_size_t ready_num_{};
 
-  /// @brief A mutex for notifying worker threads.
-  std::mutex x_mtx_{};
-
   /// @brief A flag for indicating ready.
-  bool is_ready_{false};
-
-  /// @brief A condition variable for notifying worker threads.
-  std::condition_variable cond_{};
+  std::atomic_bool is_ready_{false};
 };
 
 }  // namespace dbgroup::index::test
