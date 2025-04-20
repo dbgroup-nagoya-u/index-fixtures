@@ -368,6 +368,9 @@ class IndexMultiThreadFixture : public testing::Test
 
       auto &&iter = Scan(begin_key, end_key);
       if (expect_success) {
+        if constexpr (!kDisableScanVerifyTest) {
+          iter.PrepareVerifier();
+        }
         for (; iter; ++iter, ++begin_id) {
           if (!no_failure_) return;
           const auto key_id = begin_id;
@@ -375,6 +378,10 @@ class IndexMultiThreadFixture : public testing::Test
           const auto &[key, payload] = *iter;
           AssertEQ<KeyComp>(keys_.at(key_id), key, "Scan: key");
           AssertEQ<PayComp>(payloads_.at(val_id), payload, "Scan: payload");
+        }
+        if constexpr (!kDisableScanVerifyTest) {
+          AssertTrue(iter.VerifySnapshot(), "Scan: snapshot read");
+          AssertTrue(iter.VerifyNoPhantom(), "Scan: phantom avoidance");
         }
         AssertEQ<std::less<size_t>>(begin_id, end_id, "Scan: # of records");
       }
@@ -616,22 +623,28 @@ class IndexMultiThreadFixture : public testing::Test
       if constexpr (IsVarLenData<Key>()) {
         prev_key = std::bit_cast<Key>(::operator new(kVarDataLength));
       }
-      ++ready_num_;
-      while (counter < kReadThread) {
-        if constexpr (IsVarLenData<Key>()) {
-          memcpy(prev_key, keys_.at(0), GetLength<Key>(keys_.at(0)));
-        } else {
-          prev_key = keys_.at(0);
+      auto *key_addr = std::bit_cast<void *>(GetSrcAddr(prev_key));
+
+      for (const auto id : CreateIDsForConcurrentSMOs()) {
+        std::memcpy(key_addr, GetSrcAddr(keys_.at(0)), GetLength<Key>(keys_.at(0)));
+
+        const auto &begin_key = keys_.at(id);
+        auto &&iter = Scan(std::make_tuple(begin_key, GetLength(begin_key), kClosed));
+        if constexpr (!kDisableScanVerifyTest) {
+          iter.PrepareVerifier();
         }
-        for (auto &&iter = Scan(); iter; ++iter) {
-          if (!no_failure_) return;
+
+        constexpr size_t kScanSize = 1000;
+        for (size_t i = 0; iter && i < kScanSize; ++iter, ++i) {
+          if (!no_failure_ || counter >= kReadThread) return;
           const auto &[key, payload] = *iter;
           AssertLT<KeyComp>(prev_key, key, "Scan key");
-          if constexpr (IsVarLenData<Key>()) {
-            memcpy(prev_key, key, GetLength<Key>(key));
-          } else {
-            prev_key = key;
-          }
+          std::memcpy(key_addr, GetSrcAddr(key), GetLength<Key>(key));
+        }
+
+        if constexpr (!kDisableScanVerifyTest) {
+          static_cast<void>(iter.VerifySnapshot());
+          static_cast<void>(iter.VerifyNoPhantom());
         }
       }
       if constexpr (IsVarLenData<Key>()) {

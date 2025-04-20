@@ -34,6 +34,12 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
   )
 
   option(
+    DBGROUP_TEST_DISABLE_SCAN_VERIFIER_TEST
+    "Disable scan-verification related tests."
+    OFF
+  )
+
+  option(
     DBGROUP_TEST_DISABLE_WRITE_TEST
     "Disable write related tests."
     OFF
@@ -118,7 +124,7 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
   FetchContent_Declare(
     cpp-utility
     GIT_REPOSITORY "https://github.com/dbgroup-nagoya-u/cpp-utility.git"
-    GIT_TAG "74cca72cffec6f26399de115ff658d58ebafdc03"
+    GIT_TAG "d99fc14ec2ca6e4222b16a5b200afbe11f79f1c2"
   )
   FetchContent_MakeAvailable(cpp-utility)
 
@@ -146,6 +152,7 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
   target_compile_definitions(${PROJECT_NAME} INTERFACE
     $<$<BOOL:${DBGROUP_TEST_DISABLE_READ_TEST}>:DBGROUP_TEST_DISABLE_READ_TEST>
     $<$<BOOL:${DBGROUP_TEST_DISABLE_SCAN_TEST}>:DBGROUP_TEST_DISABLE_SCAN_TEST>
+    $<$<BOOL:${DBGROUP_TEST_DISABLE_SCAN_VERIFIER_TEST}>:DBGROUP_TEST_DISABLE_SCAN_VERIFIER_TEST>
     $<$<BOOL:${DBGROUP_TEST_DISABLE_WRITE_TEST}>:DBGROUP_TEST_DISABLE_WRITE_TEST>
     $<$<BOOL:${DBGROUP_TEST_DISABLE_INSERT_TEST}>:DBGROUP_TEST_DISABLE_INSERT_TEST>
     $<$<BOOL:${DBGROUP_TEST_DISABLE_UPDATE_TEST}>:DBGROUP_TEST_DISABLE_UPDATE_TEST>

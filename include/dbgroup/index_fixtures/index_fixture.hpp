@@ -307,12 +307,19 @@ class IndexFixture : public testing::Test
 
     auto &&iter = Scan(begin_key, end_key);
     if (expect_success) {
+      if constexpr (!kDisableScanVerifyTest) {
+        iter.PrepareVerifier();
+      }
       for (; iter; ++iter, ++begin_pos) {
         const auto &[key, payload] = *iter;
         const auto val_id = (write_twice) ? begin_pos + 1 : begin_pos;
         AssertEQ<KeyComp>(keys_.at(begin_pos), key, "[Scan: key]");
         AssertEQ<PayComp>(payloads_.at(val_id), payload, "[Scan: payload]");
         if (HasFatalFailure()) return;
+      }
+      if constexpr (!kDisableScanVerifyTest) {
+        ASSERT_TRUE(iter.VerifySnapshot()) << "[Scan: snapshot read]";
+        ASSERT_TRUE(iter.VerifyNoPhantom()) << "[Scan: phantom avoidance]";
       }
       if (end_ref) {
         ASSERT_EQ(begin_pos, end_pos) << "[Scan: iterator]";

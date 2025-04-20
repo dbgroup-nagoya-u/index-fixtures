@@ -98,6 +98,12 @@ constexpr bool kDisableScanTest = true;
 constexpr bool kDisableScanTest = false;
 #endif
 
+#ifdef DBGROUP_TEST_DISABLE_SCAN_VERIFIER_TEST
+constexpr bool kDisableScanVerifyTest = true;
+#else
+constexpr bool kDisableScanVerifyTest = false;
+#endif
+
 #ifdef DBGROUP_TEST_DISABLE_WRITE_TEST
 constexpr bool kDisableWriteTest = true;
 #else
@@ -213,6 +219,25 @@ struct DummyIter {
   constexpr void
   operator++()
   {
+  }
+
+  constexpr void
+  PrepareVerifier()
+  {
+  }
+
+  [[nodiscard]] constexpr auto
+  VerifySnapshot() const  //
+      -> bool
+  {
+    return false;
+  }
+
+  [[nodiscard]] constexpr auto
+  VerifyNoPhantom() const  //
+      -> bool
+  {
+    return false;
   }
 };
 
