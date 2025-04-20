@@ -73,7 +73,7 @@ class IndexMultiThreadFixture : public testing::Test
   static constexpr size_t kThreadNum = (DBGROUP_TEST_THREAD_NUM);
   static constexpr size_t kNodeNum = (DBGROUP_TEST_DISTRIBUTED_INDEX_NODE_NUM);
   static constexpr size_t kWorkerNum = kThreadNum * kNodeNum;
-  static constexpr size_t kKeyNum = kExecNum * kWorkerNum;
+  static constexpr size_t kKeyNum = kExecNum * (kWorkerNum + 2);
   static constexpr size_t kNodeID = (DBGROUP_TEST_DISTRIBUTED_INDEX_NODE_ID);
   static constexpr size_t kWaitForThreadCreation = 100;
 
@@ -133,7 +133,7 @@ class IndexMultiThreadFixture : public testing::Test
   {
     std::vector<size_t> target_ids{};
     target_ids.reserve(kExecNum);
-    for (size_t i = 0; i < kExecNum; ++i) {
+    for (size_t i = 1; i <= kExecNum; ++i) {
       target_ids.emplace_back(GetTargetID(i, w_id));
     }
 
@@ -156,7 +156,7 @@ class IndexMultiThreadFixture : public testing::Test
       -> std::vector<size_t>
   {
     std::mt19937_64 rng{kRandomSeed};
-    std::uniform_int_distribution<size_t> exec_dist{0, kExecNum - 1};
+    std::uniform_int_distribution<size_t> exec_dist{1, kExecNum};
     std::uniform_int_distribution<size_t> worker_dist{0, kThreadNum / 2 - 1};
 
     std::vector<size_t> target_ids{};
@@ -323,8 +323,8 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableReadTest || !no_failure_) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
-      size_t begin_id = kExecNum * w_id;
-      size_t end_id = kExecNum * (w_id + 1);
+      size_t begin_id = kExecNum * w_id + kWorkerNum;
+      size_t end_id = kExecNum * (w_id + 1) + kWorkerNum;
       ++ready_num_;
 
       for (size_t i = begin_id; i < end_id; ++i) {
@@ -355,10 +355,10 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableScanTest || !no_failure_) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
-      size_t begin_id = kExecNum * w_id;
+      size_t begin_id = kExecNum * w_id + kWorkerNum;
       const auto &begin_k = keys_.at(begin_id);
       const auto &begin_key = std::make_tuple(begin_k, GetLength(begin_k), kRangeClosed);
-      size_t end_id = kExecNum * (w_id + 1);
+      size_t end_id = kExecNum * (w_id + 1) + kWorkerNum;
       const auto &end_k = keys_.at(end_id);
       const auto &end_key = std::make_tuple(end_k, GetLength(end_k), kRangeOpened);
       ++ready_num_;
@@ -668,6 +668,8 @@ class IndexMultiThreadFixture : public testing::Test
     auto init_worker = [&](const size_t w_id) -> void {
       if (w_id < kReadThread && (w_id % 2) == 0) {
         write_proc(w_id);
+      } else {
+        ++ready_num_;
       }
     };
 
