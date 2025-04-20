@@ -266,7 +266,7 @@ class IndexFixture : public testing::Test
       if (expect_success) {
         ASSERT_TRUE(read_val) << "[Read: payload]";
         if (read_val) {
-          AssertEQ<PayComp>(payloads_.at(pay_id), read_val.value(), "[Read: payload]");
+          AssertEQ<PayComp>(payloads_.at(pay_id), read_val.value(), "Read: payload");
         }
       } else {
         ASSERT_FALSE(read_val) << "[Read: payload]";
@@ -313,8 +313,8 @@ class IndexFixture : public testing::Test
       for (; iter; ++iter, ++begin_pos) {
         const auto &[key, payload] = *iter;
         const auto val_id = (write_twice) ? begin_pos + 1 : begin_pos;
-        AssertEQ<KeyComp>(keys_.at(begin_pos), key, "[Scan: key]");
-        AssertEQ<PayComp>(payloads_.at(val_id), payload, "[Scan: payload]");
+        AssertEQ<KeyComp>(keys_.at(begin_pos), key, "Scan: key");
+        AssertEQ<PayComp>(payloads_.at(val_id), payload, "Scan: payload");
         if (HasFatalFailure()) return;
       }
       if constexpr (!kDisableScanVerifyTest) {

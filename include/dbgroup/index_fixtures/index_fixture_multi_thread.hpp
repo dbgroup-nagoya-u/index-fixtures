@@ -114,13 +114,13 @@ class IndexMultiThreadFixture : public testing::Test
     ReleaseTestData(payloads_);
   }
 
-  static constexpr auto
+  static auto
   GetTargetID(  //
       const size_t i,
       const size_t w_id)  //
       -> size_t
   {
-    assert(i < kExecNum);
+    assert(i <= kExecNum);
     assert(w_id < kWorkerNum);
     return kWorkerNum * i + w_id;
   }

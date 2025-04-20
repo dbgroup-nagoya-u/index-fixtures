@@ -348,7 +348,7 @@ CreateDummyString(  // NOLINT
     base.data[level + 1] = '\0';
 
     auto *data = std::bit_cast<char *>(&(var_arr[i]));
-    memcpy(data, &base, kVarDataLength);
+    std::memcpy(data, &base, kVarDataLength);
     data_vec.emplace_back(data);
     if (++i >= data_num) return;
 
