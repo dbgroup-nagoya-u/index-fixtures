@@ -222,6 +222,27 @@ class IndexMultiThreadFixture : public testing::Test
   }
 
   void
+  VerifyUpsert(  //
+      const uint32_t expected_val)
+  {
+    if (kDisableUpsertTest || HasFailure()) return;
+
+    auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
+      for (const auto &id : CreateIDs()) {
+        const auto &ret = index_->Upsert(id);
+        if (HasFailure()) return;
+
+        if (ret) {
+          ASSERT_LE(ret.value(), expected_val) << "[Upsert: returned value]";
+        }
+      }
+    };
+
+    std::cout << "  [dbgroup] upsert...\n";
+    RunMT(mt_worker);
+  }
+
+  void
   VerifyInsert(  //
       const uint32_t expected_val)
   {
@@ -319,6 +340,39 @@ class IndexMultiThreadFixture : public testing::Test
     if (write_twice) {
       expected_val += upd_delta;
       VerifyWrite();
+    }
+
+    VerifyRead(expect_success, expected_val);
+    VerifyScan(expect_success, expected_val);
+  }
+
+  void
+  VerifyUpsertsWith(  //
+      const bool write_twice,
+      const bool with_delete,
+      const AccessPattern pattern)
+  {
+    if (kDisableUpsertTest                       //
+        || (with_delete && kDisableDeleteTest))  //
+    {
+      GTEST_SKIP();
+    }
+
+    const auto expect_success = !with_delete || write_twice;
+    PrepareData(pattern);
+
+    const auto upd_delta = with_delete ? kInitVal : kUpdDelta;
+    uint32_t expected_val = kInitVal;
+    VerifyUpsert(expected_val);
+
+    if (with_delete) {
+      VerifyDelete(expected_val);
+      expected_val = 0;
+    }
+
+    if (write_twice) {
+      expected_val += upd_delta;
+      VerifyUpsert(expected_val);
     }
 
     VerifyRead(expect_success, expected_val);
@@ -478,6 +532,7 @@ class IndexMultiThreadFixture : public testing::Test
   {
     if (kDisableBulkloadTest                              //
         || (write_ops == kWrite && kDisableWriteTest)     //
+        || (write_ops == kUpsert && kDisableUpsertTest)   //
         || (write_ops == kInsert && kDisableInsertTest)   //
         || (write_ops == kUpdate && kDisableUpdateTest)   //
         || (write_ops == kDelete && kDisableDeleteTest))  //
@@ -495,6 +550,10 @@ class IndexMultiThreadFixture : public testing::Test
       case kWrite:
         expected_val += kUpdDelta;
         VerifyWrite();
+        break;
+      case kUpsert:
+        expected_val += kUpdDelta;
+        VerifyUpsert(expected_val);
         break;
       case kInsert:
         VerifyInsert(expected_val);

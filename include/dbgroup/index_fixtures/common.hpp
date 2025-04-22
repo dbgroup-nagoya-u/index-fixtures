@@ -58,6 +58,7 @@ enum AccessPattern {
 
 enum WriteOperation {
   kWrite,
+  kUpsert,
   kInsert,
   kUpdate,
   kDelete,
@@ -112,6 +113,12 @@ constexpr bool kDisableScanVerifyTest = false;
 constexpr bool kDisableWriteTest = true;
 #else
 constexpr bool kDisableWriteTest = false;
+#endif
+
+#ifdef DBGROUP_TEST_DISABLE_UPSERT_TEST
+constexpr bool kDisableUpsertTest = true;
+#else
+constexpr bool kDisableUpsertTest = false;
 #endif
 
 #ifdef DBGROUP_TEST_DISABLE_INSERT_TEST

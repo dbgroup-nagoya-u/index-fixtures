@@ -135,6 +135,23 @@ class IndexWrapper
   }
 
   auto
+  Upsert(                                    //
+      [[maybe_unused]] const size_t key_id)  //
+      -> std::optional<Payload>
+  {
+    if constexpr (kDisableUpsertTest) {
+      return std::nullopt;
+    } else {
+      std::optional<Payload> ret;
+      EXPECT_NO_THROW({
+        const auto &key = keys_.at(key_id);
+        ret = index_->Upsert(key, 1, GetLength(key));  //
+      }) << "[Upsert: runtime error]";
+      return ret;
+    }
+  }
+
+  auto
   Insert(                                    //
       [[maybe_unused]] const size_t key_id)  //
       -> std::optional<Payload>

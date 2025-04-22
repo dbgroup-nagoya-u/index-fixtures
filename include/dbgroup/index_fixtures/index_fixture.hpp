@@ -167,6 +167,27 @@ class IndexFixture : public testing::Test
   }
 
   void
+  VerifyUpsert(  //
+      const bool expect_insert = true,
+      const uint32_t expected_val = 0)
+  {
+    if (kDisableUpsertTest || HasFailure()) return;
+
+    std::cout << "  [dbgroup] upsert...\n";
+    for (const auto &id : target_ids_) {
+      const auto &ret = index_->Upsert(id);
+      if (HasFailure()) return;
+
+      if (expect_insert) {
+        ASSERT_FALSE(ret) << "[Upsert: RC]";
+      } else {
+        ASSERT_TRUE(ret) << "[Upsert: RC]";
+        ASSERT_EQ(ret.value(), expected_val) << "[Upsert: returned value]";
+      }
+    }
+  }
+
+  void
   VerifyInsert(  //
       const bool expect_success,
       const uint32_t expected_val = 0)
@@ -312,6 +333,40 @@ class IndexFixture : public testing::Test
   }
 
   void
+  VerifyUpsertsWith(  //
+      const bool write_twice,
+      const bool with_delete,
+      const AccessPattern pattern,
+      const size_t ops_num = kExecNum)
+  {
+    if (kDisableWriteTest                        //
+        || (with_delete && kDisableDeleteTest))  //
+    {
+      GTEST_SKIP();
+    }
+
+    const auto expect_success = !with_delete || write_twice;
+    PrepareData(pattern, ops_num);
+
+    const auto upd_delta = with_delete ? 1 : kUpdDelta;
+    uint32_t expected_val = 1;
+    VerifyUpsert();
+
+    if (with_delete) {
+      VerifyDelete(kExpectSuccess, expected_val);
+      expected_val = 0;
+    }
+
+    if (write_twice) {
+      VerifyUpsert(with_delete, expected_val);
+      expected_val += upd_delta;
+    }
+
+    VerifyRead(expect_success, expected_val);
+    VerifyScan(ops_num, expect_success, expected_val);
+  }
+
+  void
   VerifyInsertsWith(  //
       const bool write_twice,
       const bool with_delete,
@@ -414,6 +469,7 @@ class IndexFixture : public testing::Test
   {
     if (kDisableBulkloadTest                              //
         || (write_ops == kWrite && kDisableWriteTest)     //
+        || (write_ops == kUpsert && kDisableUpsertTest)   //
         || (write_ops == kInsert && kDisableInsertTest)   //
         || (write_ops == kUpdate && kDisableUpdateTest)   //
         || (write_ops == kDelete && kDisableDeleteTest))  //
@@ -431,6 +487,10 @@ class IndexFixture : public testing::Test
       case kWrite:
         VerifyWrite();
         expected_val += kUpdDelta;
+        break;
+      case kUpsert:
+        expected_val += kUpdDelta;
+        VerifyUpsert(expected_val);
         break;
       case kInsert:
         VerifyInsert(kExpectFailed, expected_val);
