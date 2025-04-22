@@ -37,21 +37,21 @@
 
 namespace dbgroup::index::test
 {
-/*##############################################################################
+/*############################################################################*
  * Fixture class definition
  *############################################################################*/
 
 template <class IndexInfo>
 class IndexFixture : public testing::Test
 {
-  /*############################################################################
+  /*##########################################################################*
    * Type aliases
    *##########################################################################*/
 
   using Index = IndexWrapper<IndexInfo>;
 
  protected:
-  /*############################################################################
+  /*##########################################################################*
    * Internal constants
    *##########################################################################*/
 
@@ -60,7 +60,7 @@ class IndexFixture : public testing::Test
   static constexpr size_t kRecNumWithInternalSMOs = 30000;
   static constexpr uint32_t kUpdDelta = kDisableRecordMerging ? 0 : 1;
 
-  /*############################################################################
+  /*##########################################################################*
    * Setup/Teardown
    *##########################################################################*/
 
@@ -75,7 +75,7 @@ class IndexFixture : public testing::Test
     index_ = nullptr;
   }
 
-  /*############################################################################
+  /*##########################################################################*
    * Utility functions
    *##########################################################################*/
 
@@ -99,7 +99,7 @@ class IndexFixture : public testing::Test
     }
   }
 
-  /*############################################################################
+  /*##########################################################################*
    * Functions for verification
    *##########################################################################*/
 
@@ -250,7 +250,7 @@ class IndexFixture : public testing::Test
     }
   }
 
-  /*############################################################################
+  /*##########################################################################*
    * Functions for test definitions
    *##########################################################################*/
 
@@ -299,7 +299,7 @@ class IndexFixture : public testing::Test
   }
 
   void
-  VerifyWritesWith(  //
+  VerifyWriteWith(  //
       const bool write_twice,
       const bool with_delete,
       const AccessPattern pattern,
@@ -333,7 +333,7 @@ class IndexFixture : public testing::Test
   }
 
   void
-  VerifyUpsertsWith(  //
+  VerifyUpsertWith(  //
       const bool write_twice,
       const bool with_delete,
       const AccessPattern pattern,
@@ -367,7 +367,7 @@ class IndexFixture : public testing::Test
   }
 
   void
-  VerifyInsertsWith(  //
+  VerifyInsertWith(  //
       const bool write_twice,
       const bool with_delete,
       const AccessPattern pattern)
@@ -397,7 +397,7 @@ class IndexFixture : public testing::Test
   }
 
   void
-  VerifyUpdatesWith(  //
+  VerifyUpdateWith(  //
       const bool with_write,
       const bool with_delete,
       const AccessPattern pattern)
@@ -432,7 +432,7 @@ class IndexFixture : public testing::Test
   }
 
   void
-  VerifyDeletesWith(  //
+  VerifyDeleteWith(  //
       const bool with_write,
       const bool with_delete,
       const AccessPattern pattern)
@@ -512,7 +512,7 @@ class IndexFixture : public testing::Test
     VerifyScan(kExecNum, expect_success, expected_val);
   }
 
-  /*############################################################################
+  /*##########################################################################*
    * Static assertions
    *##########################################################################*/
 
@@ -520,7 +520,7 @@ class IndexFixture : public testing::Test
       kExecNum >= kRecNumWithInternalSMOs,
       "DBGROUP_TEST_EXEC_NUM >= 30,000.");
 
-  /*############################################################################
+  /*##########################################################################*
    * Internal member variables
    *##########################################################################*/
 

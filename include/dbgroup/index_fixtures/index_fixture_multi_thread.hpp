@@ -41,21 +41,21 @@
 
 namespace dbgroup::index::test
 {
-/*##############################################################################
+/*############################################################################*
  * Fixture class definition
  *############################################################################*/
 
 template <class IndexInfo>
 class IndexMultiThreadFixture : public testing::Test
 {
-  /*############################################################################
+  /*##########################################################################*
    * Type aliases
    *##########################################################################*/
 
   using Index = IndexWrapper<IndexInfo>;
 
  protected:
-  /*############################################################################
+  /*##########################################################################*
    * Internal constants
    *##########################################################################*/
 
@@ -63,7 +63,7 @@ class IndexMultiThreadFixture : public testing::Test
   static constexpr uint32_t kInitVal = kDisableRecordMerging ? 1 : kWorkerNum;
   static constexpr uint32_t kUpdDelta = kDisableRecordMerging ? 0 : kWorkerNum;
 
-  /*############################################################################
+  /*##########################################################################*
    * Setup/Teardown
    *##########################################################################*/
 
@@ -80,7 +80,7 @@ class IndexMultiThreadFixture : public testing::Test
     index_ = nullptr;
   }
 
-  /*############################################################################
+  /*##########################################################################*
    * Utility functions
    *##########################################################################*/
 
@@ -141,7 +141,7 @@ class IndexMultiThreadFixture : public testing::Test
     }
   }
 
-  /*############################################################################
+  /*##########################################################################*
    * Functions for verification
    *##########################################################################*/
 
@@ -309,12 +309,12 @@ class IndexMultiThreadFixture : public testing::Test
     RunMT(mt_worker);
   }
 
-  /*############################################################################
+  /*##########################################################################*
    * Functions for test definitions
    *##########################################################################*/
 
   void
-  VerifyWritesWith(  //
+  VerifyWriteWith(  //
       const bool write_twice,
       const bool with_delete,
       const AccessPattern pattern)
@@ -347,7 +347,7 @@ class IndexMultiThreadFixture : public testing::Test
   }
 
   void
-  VerifyUpsertsWith(  //
+  VerifyUpsertWith(  //
       const bool write_twice,
       const bool with_delete,
       const AccessPattern pattern)
@@ -380,7 +380,7 @@ class IndexMultiThreadFixture : public testing::Test
   }
 
   void
-  VerifyInsertsWith(  //
+  VerifyInsertWith(  //
       const bool write_twice,
       const bool with_delete,
       const AccessPattern pattern)
@@ -410,7 +410,7 @@ class IndexMultiThreadFixture : public testing::Test
   }
 
   void
-  VerifyUpdatesWith(  //
+  VerifyUpdateWith(  //
       const bool with_write,
       const bool with_delete,
       const AccessPattern pattern)
@@ -443,7 +443,7 @@ class IndexMultiThreadFixture : public testing::Test
   }
 
   void
-  VerifyDeletesWith(  //
+  VerifyDeleteWith(  //
       const bool with_write,
       const bool with_delete,
       const AccessPattern pattern)
@@ -575,7 +575,7 @@ class IndexMultiThreadFixture : public testing::Test
     VerifyScan(expect_success, expected_val);
   }
 
-  /*############################################################################
+  /*##########################################################################*
    * Internal member variables
    *##########################################################################*/
 
