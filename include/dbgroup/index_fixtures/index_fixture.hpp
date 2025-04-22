@@ -24,7 +24,6 @@
 #include <memory>
 #include <optional>
 #include <random>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -34,6 +33,7 @@
 
 // local sources
 #include "common.hpp"
+#include "index_wrapper.hpp"
 
 namespace dbgroup::index::test
 {
@@ -48,25 +48,17 @@ class IndexFixture : public testing::Test
    * Type aliases
    *##########################################################################*/
 
-  // extract key-payload types
-  using Key = typename IndexInfo::Key::Data;
-  using Payload = typename IndexInfo::Payload::Data;
-  using KeyComp = typename IndexInfo::Key::Comp;
-  using PayComp = typename IndexInfo::Payload::Comp;
-  using Index = typename IndexInfo::Index;
-  using ScanKey = std::optional<std::tuple<const Key &, size_t, bool>>;
-  using ScanKeyRef = std::optional<std::pair<size_t, bool>>;
+  using Index = IndexWrapper<IndexInfo>;
 
  protected:
   /*############################################################################
    * Internal constants
    *##########################################################################*/
 
-  static constexpr size_t kRecNumWithoutSMOs = 30;
+  static constexpr size_t kRecNumWithoutSMOs = 10;
   static constexpr size_t kRecNumWithLeafSMOs = 1000;
   static constexpr size_t kRecNumWithInternalSMOs = 30000;
-  static constexpr size_t kKeyNum =
-      (kExecNum < kRecNumWithInternalSMOs ? kRecNumWithInternalSMOs : kExecNum) + 2;
+  static constexpr uint32_t kUpdDelta = kDisableRecordMerging ? 0 : 1;
 
   /*############################################################################
    * Setup/Teardown
@@ -88,159 +80,22 @@ class IndexFixture : public testing::Test
    *##########################################################################*/
 
   void
-  PrepareData()
+  PrepareData(  //
+      const AccessPattern pattern = kSequential,
+      const size_t rec_num = kExecNum)
   {
-    index_ = std::make_unique<Index>();
-    keys_ = PrepareTestData<Key>(kKeyNum);
-    payloads_ = PrepareTestData<Payload>(kKeyNum);
-  }
+    index_ = std::make_unique<Index>(kExecNum);
 
-  void
-  DestroyData()
-  {
-    ReleaseTestData(keys_);
-    ReleaseTestData(payloads_);
-  }
+    target_ids_.reserve(rec_num);
+    for (size_t i = 0; i < rec_num; ++i) {
+      target_ids_.emplace_back(i);
+    }
 
-  [[nodiscard]] auto
-  CreateTargetIDs(  //
-      const size_t rec_num,
-      const AccessPattern pattern) const  //
-      -> std::vector<size_t>
-  {
-    std::mt19937_64 rand_engine{kRandomSeed};
-    std::vector<size_t> target_ids{};
-    target_ids.reserve(rec_num);
     if (pattern == kReverse) {
-      for (int64_t i = static_cast<int64_t>(rec_num) - 1; i >= 0; --i) {
-        target_ids.emplace_back(i);
-      }
-    } else {
-      for (size_t i = 0; i < rec_num; ++i) {
-        target_ids.emplace_back(i);
-      }
-    }
-    if (pattern == kRandom) {
-      std::shuffle(target_ids.begin(), target_ids.end(), rand_engine);
-    }
-    return target_ids;
-  }
-
-  /*############################################################################
-   * Wrapper functions
-   *##########################################################################*/
-
-  auto
-  Read(                                      //
-      [[maybe_unused]] const size_t key_id)  //
-      -> std::optional<Payload>
-  {
-    if constexpr (kDisableReadTest) {
-      return std::nullopt;
-    } else {
-      const auto &key = keys_.at(key_id);
-      return index_->Read(key, GetLength(key));
-    }
-  }
-
-  auto
-  Scan(  //
-      [[maybe_unused]] const ScanKey &begin_key = std::nullopt,
-      [[maybe_unused]] const ScanKey &end_key = std::nullopt)
-  // -> IteratorType
-  {
-    if constexpr (kDisableScanTest) {
-      return DummyIter<Key, Payload>{};
-    } else {
-      return index_->Scan(begin_key, end_key);
-    }
-  }
-
-  auto
-  Write(  //
-      [[maybe_unused]] const size_t key_id,
-      [[maybe_unused]] const size_t pay_id)  //
-      -> ReturnCode
-  {
-    if constexpr (kDisableWriteTest) {
-      return kKeyNotExist;
-    } else {
-      const auto &key = keys_.at(key_id);
-      const auto &payload = payloads_.at(pay_id);
-      return index_->Write(key, payload, GetLength(key), GetLength(payload));
-    }
-  }
-
-  auto
-  Insert(  //
-      [[maybe_unused]] const size_t key_id,
-      [[maybe_unused]] const size_t pay_id)  //
-      -> ReturnCode
-  {
-    if constexpr (kDisableInsertTest) {
-      return kKeyNotExist;
-    } else {
-      const auto &key = keys_.at(key_id);
-      const auto &payload = payloads_.at(pay_id);
-      return index_->Insert(key, payload, GetLength(key), GetLength(payload));
-    }
-  }
-
-  auto
-  Update(  //
-      [[maybe_unused]] const size_t key_id,
-      [[maybe_unused]] const size_t pay_id)  //
-      -> ReturnCode
-  {
-    if constexpr (kDisableUpdateTest) {
-      return kKeyExist;
-    } else {
-      const auto &key = keys_.at(key_id);
-      const auto &payload = payloads_.at(pay_id);
-      return index_->Update(key, payload, GetLength(key), GetLength(payload));
-    }
-  }
-
-  auto
-  Delete(                                    //
-      [[maybe_unused]] const size_t key_id)  //
-      -> ReturnCode
-  {
-    if constexpr (kDisableDeleteTest) {
-      return kKeyExist;
-    } else {
-      const auto &key = keys_.at(key_id);
-      return index_->Delete(key, GetLength(key));
-    }
-  }
-
-  auto
-  Bulkload()  //
-      -> ReturnCode
-  {
-    if constexpr (kDisableBulkloadTest) {
-      return kKeyNotExist;
-    } else {
-      std::vector<std::tuple<Key, Payload, size_t, size_t>> entries{};
-      entries.reserve(kExecNum);
-      for (size_t i = 0; i < kExecNum; ++i) {
-        const auto &key = keys_.at(i);
-        const auto &payload = payloads_.at(i);
-        entries.emplace_back(key, payload, GetLength(key), GetLength(payload));
-      }
-      return index_->Bulkload(entries, 1);
-    }
-  }
-
-  void
-  FillIndex()
-  {
-    for (size_t i = 0; i < kExecNum; ++i) {
-      if constexpr (kDisableWriteTest) {
-        Write(i, i);
-      } else {
-        Insert(i, i);
-      }
+      std::reverse(target_ids_.begin(), target_ids_.end());
+    } else if (pattern == kRandom) {
+      std::mt19937_64 rand_engine{kRandomSeed};
+      std::shuffle(target_ids_.begin(), target_ids_.end(), rand_engine);
     }
   }
 
@@ -250,152 +105,128 @@ class IndexFixture : public testing::Test
 
   void
   VerifyRead(  //
-      const std::vector<size_t> &target_ids,
       const bool expect_success,
-      const bool write_twice = false)
+      const uint32_t expected_val)
   {
-    if constexpr (kDisableReadTest) {
-      return;
-    }
+    if (kDisableReadTest || HasFailure()) return;
 
     std::cout << "  [dbgroup] read...\n";
-    for (size_t i = 0; i < target_ids.size(); ++i) {
-      const auto key_id = target_ids.at(i);
-      const auto pay_id = (write_twice) ? key_id + 1 : key_id;
-      const auto &read_val = Read(key_id);
+    for (const auto &id : target_ids_) {
+      const auto &ret = index_->Read(id);
+      if (HasFailure()) return;
+
       if (expect_success) {
-        ASSERT_TRUE(read_val) << "[Read: payload]";
-        if (read_val) {
-          AssertEQ<PayComp>(payloads_.at(pay_id), read_val.value(), "Read: payload");
-        }
+        ASSERT_TRUE(ret) << "[Read: RC]";
+        ASSERT_EQ(ret.value(), expected_val) << "[Read: returned value]";
       } else {
-        ASSERT_FALSE(read_val) << "[Read: payload]";
+        ASSERT_FALSE(ret) << "[Read: RC]";
       }
-      if (HasFatalFailure()) return;
     }
   }
 
   void
   VerifyScan(  //
-      [[maybe_unused]] const ScanKeyRef &begin_ref,
-      [[maybe_unused]] const ScanKeyRef &end_ref,
-      [[maybe_unused]] const bool expect_success = true,
-      [[maybe_unused]] const bool write_twice = false)
+      [[maybe_unused]] const size_t rec_num,
+      [[maybe_unused]] const bool expect_success,
+      [[maybe_unused]] const uint32_t expected_val)
   {
-    if constexpr (kDisableScanTest) {
-      return;
-    }
+    if (kDisableScanTest || HasFailure()) return;
 
     std::cout << "  [dbgroup] scan...\n";
-    ScanKey begin_key{std::nullopt};
-    size_t begin_pos = 0;
-    if (begin_ref) {
-      auto &&[begin_id, begin_closed] = *begin_ref;
-      const auto &key = keys_.at(begin_id);
-      begin_key.emplace(key, GetLength(key), begin_closed);
-      begin_pos = (begin_closed) ? begin_id : begin_id + 1;
-    }
-
-    ScanKey end_key{std::nullopt};
-    size_t end_pos = 0;
-    if (end_ref) {
-      auto &&[end_id, end_closed] = *end_ref;
-      const auto &key = keys_.at(end_id);
-      end_key.emplace(key, GetLength(key), end_closed);
-      end_pos = (end_closed) ? end_id + 1 : end_id;
-    }
-
-    auto &&iter = Scan(begin_key, end_key);
+    auto &&iter = index_->Scan();
     if (expect_success) {
       if constexpr (!kDisableScanVerifyTest) {
         iter.PrepareVerifier();
       }
-      for (; iter; ++iter, ++begin_pos) {
-        const auto &[key, payload] = *iter;
-        const auto val_id = (write_twice) ? begin_pos + 1 : begin_pos;
-        AssertEQ<KeyComp>(keys_.at(begin_pos), key, "Scan: key");
-        AssertEQ<PayComp>(payloads_.at(val_id), payload, "Scan: payload");
-        if (HasFatalFailure()) return;
+
+      size_t i = 0;
+      for (; !HasFailure() && iter && i < rec_num; ++iter, ++i) {
+        const auto &[_, payload] = *iter;
+        ASSERT_EQ(payload, expected_val) << "[Scan: payload]";
       }
+      ASSERT_EQ(i, rec_num) << "[Scan: # of records]";
+
       if constexpr (!kDisableScanVerifyTest) {
         ASSERT_TRUE(iter.VerifySnapshot()) << "[Scan: snapshot read]";
         ASSERT_TRUE(iter.VerifyNoPhantom()) << "[Scan: phantom avoidance]";
-      }
-      if (end_ref) {
-        ASSERT_EQ(begin_pos, end_pos) << "[Scan: iterator]";
       }
     }
     ASSERT_FALSE(iter) << "[Scan: iterator]";
   }
 
   void
-  VerifyWrite(  //
-      const std::vector<size_t> &target_ids,
-      const bool write_twice = false)
+  VerifyWrite()
   {
+    if (kDisableWriteTest || HasFailure()) return;
+
     std::cout << "  [dbgroup] write...\n";
-    for (size_t i = 0; i < target_ids.size(); ++i) {
-      const auto key_id = target_ids.at(i);
-      const auto pay_id = (write_twice) ? key_id + 1 : key_id;
-      ASSERT_EQ(Write(key_id, pay_id), kSuccess) << "[Write: RC]";
+    for (const auto &id : target_ids_) {
+      index_->Write(id);
+      if (HasFailure()) return;
     }
   }
 
   void
   VerifyInsert(  //
-      const std::vector<size_t> &target_ids,
       const bool expect_success,
-      const bool write_twice = false)
+      const uint32_t expected_val = 0)
   {
+    if (kDisableInsertTest || HasFailure()) return;
+
     std::cout << "  [dbgroup] insert...\n";
-    for (size_t i = 0; i < target_ids.size(); ++i) {
-      const auto key_id = target_ids.at(i);
-      const auto pay_id = (write_twice) ? key_id + 1 : key_id;
+    for (const auto &id : target_ids_) {
+      const auto &ret = index_->Insert(id);
+      if (HasFailure()) return;
+
       if (expect_success) {
-        ASSERT_EQ(Insert(key_id, pay_id), kSuccess) << "[Insert: RC]";
+        ASSERT_FALSE(ret) << "[Insert: RC]";
       } else {
-        ASSERT_EQ(Insert(key_id, pay_id), kKeyExist) << "[Insert: RC]";
+        ASSERT_TRUE(ret) << "[Insert: RC]";
+        ASSERT_EQ(ret.value(), expected_val) << "[Insert: returned value]";
       }
     }
   }
 
   void
   VerifyUpdate(  //
-      const std::vector<size_t> &target_ids,
-      const bool expect_success)
+      const bool expect_success,
+      const uint32_t expected_val)
   {
+    if (kDisableUpdateTest || HasFailure()) return;
+
     std::cout << "  [dbgroup] update...\n";
-    for (size_t i = 0; i < target_ids.size(); ++i) {
-      const auto key_id = target_ids.at(i);
-      const auto pay_id = key_id + 1;
+    for (const auto &id : target_ids_) {
+      const auto &ret = index_->Update(id);
+      if (HasFailure()) return;
+
       if (expect_success) {
-        ASSERT_EQ(Update(key_id, pay_id), kSuccess) << "[Update: RC]";
+        ASSERT_TRUE(ret) << "[Update: RC]";
+        ASSERT_EQ(ret.value(), expected_val) << "[Update: returned value]";
       } else {
-        ASSERT_EQ(Update(key_id, pay_id), kKeyNotExist) << "[Update: RC]";
+        ASSERT_FALSE(ret) << "[Update: RC]";
       }
     }
   }
 
   void
   VerifyDelete(  //
-      const std::vector<size_t> &target_ids,
-      const bool expect_success)
+      const bool expect_success,
+      const uint32_t expected_val)
   {
+    if (kDisableDeleteTest || HasFailure()) return;
+
     std::cout << "  [dbgroup] delete...\n";
-    for (size_t i = 0; i < target_ids.size(); ++i) {
-      const auto key_id = target_ids.at(i);
+    for (const auto &id : target_ids_) {
+      const auto &ret = index_->Delete(id);
+      if (HasFailure()) return;
+
       if (expect_success) {
-        ASSERT_EQ(Delete(key_id), kSuccess) << "[Delete: RC]";
+        ASSERT_TRUE(ret) << "[Delete: RC]";
+        ASSERT_EQ(ret.value(), expected_val) << "[Delete: returned value]";
       } else {
-        ASSERT_EQ(Delete(key_id), kKeyNotExist) << "[Delete: RC]";
+        ASSERT_FALSE(ret) << "[Delete: RC]";
       }
     }
-  }
-
-  void
-  VerifyBulkload()
-  {
-    ASSERT_EQ(Bulkload(), kSuccess) << "[Bulkload: RC]";
   }
 
   /*############################################################################
@@ -406,37 +237,44 @@ class IndexFixture : public testing::Test
   VerifyReadEmptyIndex()
   {
     PrepareData();
-    VerifyRead({0}, kExpectFailed);
-    DestroyData();
+    VerifyRead(kExpectFailed, 0);
   }
 
   void
   VerifyScanWith(  //
-      const bool has_range,
-      const bool closed = true)
+      const bool closed)
   {
-    constexpr auto kRecNum = kExecNum;
-
     if (kDisableScanTest                               //
         || (kDisableWriteTest && kDisableInsertTest))  //
     {
       GTEST_SKIP();
     }
 
+    const size_t rec_num = kExecNum - (closed ? 0 : 2);
     PrepareData();
 
-    ScanKeyRef begin_key = std::nullopt;
-    ScanKeyRef end_key = std::nullopt;
-    if (has_range) {
-      begin_key = std::make_pair(0, closed);
-      end_key = std::make_pair(kRecNum - 1, closed);
+    std::cout << "  [dbgroup] initialization...\n";
+    for (size_t i = 0; !HasFailure() && i < kExecNum; ++i) {
+      if constexpr (kDisableWriteTest) {
+        index_->Write(i);
+      } else {
+        index_->Insert(i);
+      }
     }
 
-    std::cout << "  [dbgroup] initialization...\n";
-    FillIndex();
-    VerifyScan(begin_key, end_key);
-
-    DestroyData();
+    std::cout << "  [dbgroup] scan...\n";
+    auto &&iter = index_->Scan(0, closed, kExecNum - 1, closed);
+    size_t i = closed ? 0 : 1;
+    for (; !HasFailure() && iter && i < rec_num; ++iter, ++i) {
+      const auto &[key, payload] = *iter;
+      ASSERT_EQ(payload, 1) << "[Scan: payload]";
+    }
+    ASSERT_EQ(i, rec_num) << "[Scan: # of records]";
+    if (closed) {
+      ASSERT_FALSE(iter) << "[Scan: iterator]";
+    } else {
+      ASSERT_TRUE(iter) << "[Scan: iterator]";
+    }
   }
 
   void
@@ -452,27 +290,25 @@ class IndexFixture : public testing::Test
       GTEST_SKIP();
     }
 
-    PrepareData();
+    const auto expect_success = !with_delete || write_twice;
+    PrepareData(pattern, ops_num);
 
-    const auto &target_ids = CreateTargetIDs(ops_num, pattern);
-    const auto &begin_ref = std::make_pair(0, kRangeClosed);
-    const auto &end_ref = std::make_pair(ops_num, kRangeOpened);
+    const auto upd_delta = with_delete ? 1 : kUpdDelta;
+    uint32_t expected_val = 1;
+    VerifyWrite();
 
-    VerifyWrite(target_ids);
-    if (HasFatalFailure()) goto END_TEST;
+    if (with_delete) {
+      VerifyDelete(kExpectSuccess, expected_val);
+      expected_val = 0;
+    }
 
-    if (with_delete) VerifyDelete(target_ids, kExpectSuccess);
-    if (HasFatalFailure()) goto END_TEST;
+    if (write_twice) {
+      VerifyWrite();
+      expected_val += upd_delta;
+    }
 
-    if (write_twice) VerifyWrite(target_ids, kWriteTwice);
-    if (HasFatalFailure()) goto END_TEST;
-
-    VerifyRead(target_ids, !with_delete || write_twice, write_twice);
-    if (HasFatalFailure()) goto END_TEST;
-
-    VerifyScan(begin_ref, end_ref, kExpectSuccess, write_twice);
-  END_TEST:
-    DestroyData();
+    VerifyRead(expect_success, expected_val);
+    VerifyScan(ops_num, expect_success, expected_val);
   }
 
   void
@@ -487,29 +323,22 @@ class IndexFixture : public testing::Test
       GTEST_SKIP();
     }
 
-    PrepareData();
-
-    const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
-    const auto &begin_ref = std::make_pair(0, kRangeClosed);
-    const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
     const auto expect_success = !with_delete || write_twice;
-    const bool is_updated = write_twice && with_delete;
+    PrepareData(pattern);
 
-    VerifyInsert(target_ids, kExpectSuccess);
-    if (HasFatalFailure()) goto END_TEST;
+    uint32_t expected_val = 1;
+    VerifyInsert(kExpectSuccess, expected_val);
 
-    if (with_delete) VerifyDelete(target_ids, kExpectSuccess);
-    if (HasFatalFailure()) goto END_TEST;
+    if (with_delete) {
+      VerifyDelete(kExpectSuccess, expected_val);
+    }
 
-    if (write_twice) VerifyInsert(target_ids, with_delete, kWriteTwice);
-    if (HasFatalFailure()) goto END_TEST;
+    if (write_twice) {
+      VerifyInsert(with_delete, expected_val);
+    }
 
-    VerifyRead(target_ids, expect_success, is_updated);
-    if (HasFatalFailure()) goto END_TEST;
-
-    VerifyScan(begin_ref, end_ref, expect_success, is_updated);
-  END_TEST:
-    DestroyData();
+    VerifyRead(expect_success, expected_val);
+    VerifyScan(kExecNum, expect_success, expected_val);
   }
 
   void
@@ -518,34 +347,33 @@ class IndexFixture : public testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
-    if (kDisableUpdateTest                                                            //
-        || (with_write && kDisableWriteTest) || (with_delete && kDisableDeleteTest))  //
+    if (kDisableUpdateTest                       //
+        || (with_write && kDisableWriteTest)     //
+        || (with_delete && kDisableDeleteTest))  //
     {
       GTEST_SKIP();
     }
 
-    PrepareData();
+    const auto expect_success = with_write && !with_delete;
+    PrepareData(pattern);
 
-    const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
-    const auto &begin_ref = std::make_pair(0, kRangeClosed);
-    const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
-    const auto expect_update = with_write && !with_delete;
+    uint32_t expected_val = 0;
+    if (with_write) {
+      VerifyWrite();
+      expected_val = 1;
+    }
 
-    if (with_write) VerifyWrite(target_ids);
-    if (HasFatalFailure()) goto END_TEST;
+    if (with_delete) {
+      VerifyDelete(with_write, expected_val);
+    }
 
-    if (with_delete) VerifyDelete(target_ids, with_write);
-    if (HasFatalFailure()) goto END_TEST;
+    VerifyUpdate(expect_success, expected_val);
+    if (expect_success) {
+      expected_val += kUpdDelta;
+    }
 
-    VerifyUpdate(target_ids, expect_update);
-    if (HasFatalFailure()) goto END_TEST;
-
-    VerifyRead(target_ids, expect_update, kWriteTwice);
-    if (HasFatalFailure()) goto END_TEST;
-
-    VerifyScan(begin_ref, end_ref, expect_update, kWriteTwice);
-  END_TEST:
-    DestroyData();
+    VerifyRead(expect_success, expected_val);
+    VerifyScan(kExecNum, expect_success, expected_val);
   }
 
   void
@@ -560,28 +388,23 @@ class IndexFixture : public testing::Test
       GTEST_SKIP();
     }
 
-    PrepareData();
+    const auto expect_success = with_write && !with_delete;
+    PrepareData(pattern);
 
-    const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
-    const auto &begin_ref = std::make_pair(0, kRangeClosed);
-    const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
-    const auto expect_delete = with_write && !with_delete;
+    uint32_t expected_val = 0;
+    if (with_write) {
+      VerifyWrite();
+      expected_val = 1;
+    }
 
-    if (with_write) VerifyWrite(target_ids);
-    if (HasFatalFailure()) goto END_TEST;
+    if (with_delete) {
+      VerifyDelete(with_write, expected_val);
+    }
 
-    if (with_delete) VerifyDelete(target_ids, with_write);
-    if (HasFatalFailure()) goto END_TEST;
+    VerifyDelete(expect_success, expected_val);
 
-    VerifyDelete(target_ids, expect_delete);
-    if (HasFatalFailure()) goto END_TEST;
-
-    VerifyRead(target_ids, kExpectFailed);
-    if (HasFatalFailure()) goto END_TEST;
-
-    VerifyScan(begin_ref, end_ref, kExpectFailed);
-  END_TEST:
-    DestroyData();
+    VerifyRead(kExpectFailed, expected_val);
+    VerifyScan(kExecNum, kExpectFailed, expected_val);
   }
 
   void
@@ -598,60 +421,54 @@ class IndexFixture : public testing::Test
       GTEST_SKIP();
     }
 
-    PrepareData();
-
-    const auto &target_ids = CreateTargetIDs(kExecNum, pattern);
-    const auto &begin_ref = std::make_pair(0, kRangeClosed);
-    const auto &end_ref = std::make_pair(kExecNum, kRangeOpened);
+    PrepareData(pattern);
     auto expect_success = true;
-    auto is_updated = false;
+    uint32_t expected_val = 1;
 
     std::cout << "  [dbgroup] bulkload...\n";
-    VerifyBulkload();
-    if (HasFatalFailure()) goto END_TEST;
-
+    index_->Bulkload();
     switch (write_ops) {
       case kWrite:
-        VerifyWrite(target_ids, kWriteTwice);
-        is_updated = true;
+        VerifyWrite();
+        expected_val += kUpdDelta;
         break;
       case kInsert:
-        VerifyInsert(target_ids, kExpectFailed);
+        VerifyInsert(kExpectFailed, expected_val);
         break;
       case kUpdate:
-        VerifyUpdate(target_ids, kExpectSuccess);
-        is_updated = true;
+        VerifyUpdate(kExpectSuccess, expected_val);
+        expected_val += kUpdDelta;
         break;
       case kDelete:
-        VerifyDelete(target_ids, kExpectSuccess);
+        VerifyDelete(kExpectSuccess, expected_val);
         expect_success = false;
         break;
       case kWithoutWrite:
       default:
         break;
     }
-    if (HasFatalFailure()) goto END_TEST;
 
-    VerifyRead(target_ids, expect_success, is_updated);
-    if (HasFatalFailure()) goto END_TEST;
-
-    VerifyScan(begin_ref, end_ref, expect_success, is_updated);
-  END_TEST:
-    DestroyData();
+    VerifyRead(expect_success, expected_val);
+    VerifyScan(kExecNum, expect_success, expected_val);
   }
+
+  /*############################################################################
+   * Static assertions
+   *##########################################################################*/
+
+  static_assert(  //
+      kExecNum >= kRecNumWithInternalSMOs,
+      "DBGROUP_TEST_EXEC_NUM >= 30,000.");
 
   /*############################################################################
    * Internal member variables
    *##########################################################################*/
 
-  /// actual keys
-  std::vector<Key> keys_{};
+  /// @brief An index for testing.
+  std::unique_ptr<Index> index_{};
 
-  /// actual payloads
-  std::vector<Payload> payloads_{};
-
-  /// an index for testing
-  std::unique_ptr<Index> index_{nullptr};
+  /// @brief Record IDs for testing.
+  std::vector<size_t> target_ids_{};
 };
 
 }  // namespace dbgroup::index::test

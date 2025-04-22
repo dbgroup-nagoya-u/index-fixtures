@@ -64,9 +64,17 @@ enum WriteOperation {
   kWithoutWrite,
 };
 
-constexpr size_t kExecNum = DBGROUP_TEST_EXEC_NUM;
+constexpr size_t kExecNum = (DBGROUP_TEST_EXEC_NUM);
 
-constexpr size_t kRandomSeed = DBGROUP_TEST_RANDOM_SEED;
+constexpr size_t kRandomSeed = (DBGROUP_TEST_RANDOM_SEED);
+
+constexpr size_t kThreadNum = (DBGROUP_TEST_THREAD_NUM);
+
+constexpr size_t kNodeNum = (DBGROUP_TEST_DISTRIBUTED_INDEX_NODE_NUM);
+
+constexpr size_t kNodeID = (DBGROUP_TEST_DISTRIBUTED_INDEX_NODE_ID);
+
+constexpr size_t kWorkerNum = kThreadNum * kNodeNum;
 
 constexpr size_t kVarDataLength = 18;
 
@@ -75,10 +83,6 @@ constexpr bool kExpectSuccess = true;
 constexpr bool kExpectFailed = false;
 
 constexpr bool kHasRange = true;
-
-constexpr bool kRangeClosed = true;
-
-constexpr bool kRangeOpened = false;
 
 constexpr bool kWriteTwice = true;
 
@@ -132,6 +136,12 @@ constexpr bool kDisableDeleteTest = false;
 constexpr bool kDisableBulkloadTest = true;
 #else
 constexpr bool kDisableBulkloadTest = false;
+#endif
+
+#ifdef DBGROUP_TEST_DISABLE_RECORD_MERGING
+constexpr bool kDisableRecordMerging = true;
+#else
+constexpr bool kDisableRecordMerging = false;
 #endif
 
 /*##############################################################################
@@ -204,7 +214,7 @@ struct VarData {
 template <class Key, class Payload>
 struct DummyIter {
   constexpr explicit
-  operator bool() noexcept
+  operator bool() const noexcept
   {
     return false;
   }
@@ -217,12 +227,12 @@ struct DummyIter {
   }
 
   constexpr void
-  operator++()
+  operator++() const
   {
   }
 
   constexpr void
-  PrepareVerifier()
+  PrepareVerifier() const
   {
   }
 
@@ -302,17 +312,6 @@ struct Var {
 struct Original {
   using Data = MyClass;
   using Comp = std::less<MyClass>;
-};
-
-struct RCComp {
-  constexpr auto
-  operator()(  //
-      const ReturnCode &lhs,
-      const ReturnCode &rhs) const noexcept  //
-      -> bool
-  {
-    return lhs < rhs;
-  }
 };
 
 /*##############################################################################
@@ -400,123 +399,18 @@ ReleaseTestData(  //
   }
 }
 
-/*##############################################################################
- * Utility functions for assertion
- *############################################################################*/
-
-/// a mutex for outputting messages
-std::mutex _io_mtx{};  // NOLINT
-
-void
-AssertTrue(  //
-    const bool expect_true,
-    const std::string_view &tag)
-{
-  if (!expect_true) {
-    const std::lock_guard lock{_io_mtx};
-    std::cout << "  [" << tag << "] The actual value was not true.\n";
-#ifdef NDEBUG
-    throw std::runtime_error{""};
-#else
-    FAIL();
-#endif
-  }
-}
-
-void
-AssertFalse(  //
-    const bool expect_false,
-    const std::string_view &tag)
-{
-  if (expect_false) {
-    const std::lock_guard lock{_io_mtx};
-    std::cout << "  [" << tag << "] The actual value was not false.\n";
-#ifdef NDEBUG
-    throw std::runtime_error{""};
-#else
-    FAIL();
-#endif
-  }
-}
-
-template <class Comp, class T>
-void
-AssertEQ(  //
-    const T &actual,
-    const T &expected,
-    const std::string_view &tag)
-{
-  if (!IsEqual<Comp>(actual, expected)) {
-    const std::lock_guard lock{_io_mtx};
-    std::cout << "  [" << tag << "] The actual value was different from the expected one.\n"
-              << "    actual:   " << actual << "\n"
-              << "    expected: " << expected << "\n";
-#ifdef NDEBUG
-    throw std::runtime_error{""};
-#else
-    FAIL();
-#endif
-  }
-}
-
-template <class Comp, class T>
-void
-AssertNE(  //
-    const T &actual,
-    const T &expected,
-    const std::string_view &tag)
-{
-  if (IsEqual<Comp>(actual, expected)) {
-    const std::lock_guard lock{_io_mtx};
-    std::cout << "  [" << tag << "] The actual value was equal to the expected one.\n"
-              << "    actual:   " << actual << "\n"
-              << "    expected: " << expected << "\n";
-#ifdef NDEBUG
-    throw std::runtime_error{""};
-#else
-    FAIL();
-#endif
-  }
-}
-
-template <class Comp, class T>
-void
-AssertLT(  //
+template <class T>
+constexpr auto
+AddMerger(  //
     const T &lhs,
-    const T &rhs,
-    const std::string_view &tag)
+    const T &rhs)  //
+    -> T
 {
-  if (!Comp{}(lhs, rhs)) {
-    const std::lock_guard lock{_io_mtx};
-    std::cout << "  [" << tag << "] The left-hand side value was larger the right-hand side one.\n"
-              << "    lhs: " << lhs << "\n"
-              << "    rhs: " << rhs << "\n";
-#ifdef NDEBUG
-    throw std::runtime_error{""};
-#else
-    FAIL();
-#endif
-  }
+  return lhs + rhs;
 }
 
 }  // namespace test
 }  // namespace dbgroup::index
-
-auto
-operator<<(  //
-    std::ostream &os,
-    const ::dbgroup::index::ReturnCode &obj)  //
-    -> std::ostream &
-{
-  if (obj == ::dbgroup::index::ReturnCode::kSuccess) {
-    os << "kSuccess";
-  } else if (obj == ::dbgroup::index::ReturnCode::kKeyNotExist) {
-    os << "kKeyNotExist";
-  } else {
-    os << "kKeyExist";
-  }
-  return os;
-}
 
 auto
 operator<<(  //

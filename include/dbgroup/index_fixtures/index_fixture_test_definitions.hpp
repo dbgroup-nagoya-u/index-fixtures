@@ -33,19 +33,14 @@ TYPED_TEST(IndexFixture, ReadWithEmptyIndexFail)
  * Scan operation
  *----------------------------------------------------------------------------*/
 
-TYPED_TEST(IndexFixture, ScanWithoutKeysPerformFullScan)
-{
-  TestFixture::VerifyScanWith(!kHasRange);
-}
-
 TYPED_TEST(IndexFixture, ScanWithClosedRangeIncludeLeftRightEnd)
 {
-  TestFixture::VerifyScanWith(kHasRange, kRangeClosed);
+  TestFixture::VerifyScanWith(kClosed);
 }
 
 TYPED_TEST(IndexFixture, ScanWithOpenedRangeExcludeLeftRightEnd)
 {
-  TestFixture::VerifyScanWith(kHasRange, kRangeOpened);
+  TestFixture::VerifyScanWith(kOpen);
 }
 
 /*------------------------------------------------------------------------------

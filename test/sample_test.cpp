@@ -32,14 +32,13 @@ struct Index {
   // dummy struct for index implementations
 };
 
-using TestTargets = ::testing::Types<     //
-    IndexInfo<Index, UInt8, Int8>,        // fixed-length keys
-    IndexInfo<Index, UInt4, Int8>,        // small keys
-    IndexInfo<Index, UInt8, UInt4>,       // small payloads
-    IndexInfo<Index, UInt4, UInt4>,       // small keys/payloads
-    IndexInfo<Index, Var, Var>,           // variable-length keys/payloads
-    IndexInfo<Index, Ptr, Ptr>,           // pointer keys/payloads
-    IndexInfo<Index, Original, Original>  // user-defined keys/payloads
+using TestTargets = ::testing::Types<  //
+    IndexInfo<Index, UInt8, UInt8>,    // fixed-length keys
+    IndexInfo<Index, UInt4, UInt8>,    // small keys
+    IndexInfo<Index, Var, UInt8>,      // varlen keys
+    IndexInfo<Index, UInt8, UInt4>,    // fixed-length keys/small payloads
+    IndexInfo<Index, UInt4, UInt4>,    // small keys/small payloads
+    IndexInfo<Index, Var, UInt4>       // varlen keys/small payloads
     >;
 TYPED_TEST_SUITE(IndexFixture, TestTargets);
 
