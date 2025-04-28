@@ -109,7 +109,7 @@ class IndexWrapper
         b_key = std::make_tuple(key, GetLength(key), b_closed);
       }
       ScanKey e_key{};
-      if (b_id) {
+      if (e_id) {
         const auto &key = keys_.at(*e_id);
         e_key = std::make_tuple(key, GetLength(key), e_closed);
       }
