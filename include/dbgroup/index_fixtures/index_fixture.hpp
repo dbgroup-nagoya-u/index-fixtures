@@ -339,7 +339,7 @@ class IndexFixture : public testing::Test
       const AccessPattern pattern,
       const size_t ops_num = kExecNum)
   {
-    if (kDisableWriteTest                        //
+    if (kDisableUpsertTest                        //
         || (with_delete && kDisableDeleteTest))  //
     {
       GTEST_SKIP();
