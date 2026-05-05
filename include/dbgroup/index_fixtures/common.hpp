@@ -103,6 +103,12 @@ constexpr bool kDisableScanTest = true;
 constexpr bool kDisableScanTest = false;
 #endif
 
+#ifdef DBGROUP_TEST_DISABLE_SCAN_BACKWARD_TEST
+constexpr bool kDisableScanBackwardTest = true;
+#else
+constexpr bool kDisableScanBackwardTest = false;
+#endif
+
 #ifdef DBGROUP_TEST_DISABLE_SCAN_VERIFIER_TEST
 constexpr bool kDisableScanVerifyTest = true;
 #else

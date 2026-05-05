@@ -125,14 +125,14 @@ class IndexFixture : public testing::Test
   }
 
   void
-  VerifyScan(  //
+  VerifyScanForward(  //
       [[maybe_unused]] const size_t rec_num,
       [[maybe_unused]] const bool expect_success,
       [[maybe_unused]] const uint32_t expected_val)
   {
     if (kDisableScanTest || HasFailure()) return;
 
-    std::cout << "  [dbgroup] scan...\n";
+    std::cout << "  [dbgroup] scan forward...\n";
     auto &&iter = index_->Scan();
     if (expect_success) {
       if constexpr (!kDisableScanVerifyTest) {
@@ -152,6 +152,36 @@ class IndexFixture : public testing::Test
       }
     }
     ASSERT_FALSE(iter) << "[Scan: iterator]";
+  }
+
+  void
+  VerifyScanBackward(  //
+      [[maybe_unused]] const size_t rec_num,
+      [[maybe_unused]] const bool expect_success,
+      [[maybe_unused]] const uint32_t expected_val)
+  {
+    if (kDisableScanBackwardTest || HasFailure()) return;
+
+    std::cout << "  [dbgroup] scan backward...\n";
+    auto &&iter = index_->ScanBackward();
+    if (expect_success) {
+      if constexpr (!kDisableScanVerifyTest) {
+        iter.PrepareVerifier();
+      }
+
+      size_t i = 0;
+      for (; !HasFailure() && iter && i < rec_num; ++iter, ++i) {
+        const auto &[_, payload] = *iter;
+        ASSERT_EQ(payload, expected_val) << "[ScanBackward: payload]";
+      }
+      ASSERT_EQ(i, rec_num) << "[ScanBackward: # of records]";
+
+      if constexpr (!kDisableScanVerifyTest) {
+        ASSERT_TRUE(iter.VerifySnapshot()) << "[ScanBackward: snapshot read]";
+        ASSERT_TRUE(iter.VerifyNoPhantom()) << "[ScanBackward: phantom avoidance]";
+      }
+    }
+    ASSERT_FALSE(iter) << "[ScanBackward: iterator]";
   }
 
   void
@@ -262,7 +292,7 @@ class IndexFixture : public testing::Test
   }
 
   void
-  VerifyScanWith(  //
+  VerifyScanForwardWith(  //
       const bool closed)
   {
     if (kDisableScanTest                               //
@@ -283,7 +313,7 @@ class IndexFixture : public testing::Test
       }
     }
 
-    std::cout << "  [dbgroup] scan...\n";
+    std::cout << "  [dbgroup] scan forward...\n";
     auto &&iter = index_->Scan(0, closed, kExecNum - 1, closed);
     size_t i = closed ? 0 : 1;
     for (; !HasFailure() && iter && i < rec_num; ++iter, ++i) {
@@ -295,6 +325,43 @@ class IndexFixture : public testing::Test
       ASSERT_FALSE(iter) << "[Scan: iterator]";
     } else {
       ASSERT_TRUE(iter) << "[Scan: iterator]";
+    }
+  }
+
+  void
+  VerifyScanBackwardWith(  //
+      const bool closed)
+  {
+    if (kDisableScanBackwardTest                       //
+        || (kDisableWriteTest && kDisableInsertTest))  //
+    {
+      GTEST_SKIP();
+    }
+
+    const size_t rec_num = kExecNum - (closed ? 0 : 2);
+    PrepareData();
+
+    std::cout << "  [dbgroup] initialization...\n";
+    for (size_t i = 0; !HasFailure() && i < kExecNum; ++i) {
+      if constexpr (kDisableWriteTest) {
+        index_->Write(i);
+      } else {
+        index_->Insert(i);
+      }
+    }
+
+    std::cout << "  [dbgroup] scan backward...\n";
+    auto &&iter = index_->ScanBackward(0, closed, kExecNum - 1, closed);
+    size_t i = closed ? 0 : 1;
+    for (; !HasFailure() && iter && i < rec_num; ++iter, ++i) {
+      const auto &[key, payload] = *iter;
+      ASSERT_EQ(payload, 1) << "[ScanBackward: payload]";
+    }
+    ASSERT_EQ(i, rec_num) << "[ScanBackward: # of records]";
+    if (closed) {
+      ASSERT_FALSE(iter) << "[ScanBackward: iterator]";
+    } else {
+      ASSERT_TRUE(iter) << "[ScanBackward: iterator]";
     }
   }
 
@@ -329,7 +396,8 @@ class IndexFixture : public testing::Test
     }
 
     VerifyRead(expect_success, expected_val);
-    VerifyScan(ops_num, expect_success, expected_val);
+    VerifyScanForward(ops_num, expect_success, expected_val);
+    VerifyScanBackward(ops_num, expect_success, expected_val);
   }
 
   void
@@ -339,7 +407,7 @@ class IndexFixture : public testing::Test
       const AccessPattern pattern,
       const size_t ops_num = kExecNum)
   {
-    if (kDisableUpsertTest                        //
+    if (kDisableUpsertTest                       //
         || (with_delete && kDisableDeleteTest))  //
     {
       GTEST_SKIP();
@@ -363,7 +431,8 @@ class IndexFixture : public testing::Test
     }
 
     VerifyRead(expect_success, expected_val);
-    VerifyScan(ops_num, expect_success, expected_val);
+    VerifyScanForward(ops_num, expect_success, expected_val);
+    VerifyScanBackward(ops_num, expect_success, expected_val);
   }
 
   void
@@ -393,7 +462,8 @@ class IndexFixture : public testing::Test
     }
 
     VerifyRead(expect_success, expected_val);
-    VerifyScan(kExecNum, expect_success, expected_val);
+    VerifyScanForward(kExecNum, expect_success, expected_val);
+    VerifyScanBackward(kExecNum, expect_success, expected_val);
   }
 
   void
@@ -428,7 +498,8 @@ class IndexFixture : public testing::Test
     }
 
     VerifyRead(expect_success, expected_val);
-    VerifyScan(kExecNum, expect_success, expected_val);
+    VerifyScanForward(kExecNum, expect_success, expected_val);
+    VerifyScanBackward(kExecNum, expect_success, expected_val);
   }
 
   void
@@ -459,7 +530,8 @@ class IndexFixture : public testing::Test
     VerifyDelete(expect_success, expected_val);
 
     VerifyRead(kExpectFailed, expected_val);
-    VerifyScan(kExecNum, kExpectFailed, expected_val);
+    VerifyScanForward(kExecNum, kExpectFailed, expected_val);
+    VerifyScanBackward(kExecNum, kExpectFailed, expected_val);
   }
 
   void
@@ -509,7 +581,8 @@ class IndexFixture : public testing::Test
     }
 
     VerifyRead(expect_success, expected_val);
-    VerifyScan(kExecNum, expect_success, expected_val);
+    VerifyScanForward(kExecNum, expect_success, expected_val);
+    VerifyScanBackward(kExecNum, expect_success, expected_val);
   }
 
   /*##########################################################################*

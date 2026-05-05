@@ -171,7 +171,7 @@ class IndexMultiThreadFixture : public testing::Test
   }
 
   void
-  VerifyScan(  //
+  VerifyScanForward(  //
       [[maybe_unused]] const bool expect_success,
       [[maybe_unused]] const uint32_t expected_val)
   {
@@ -201,7 +201,42 @@ class IndexMultiThreadFixture : public testing::Test
       }
     };
 
-    std::cout << "  [dbgroup] scan...\n";
+    std::cout << "  [dbgroup] scan forward...\n";
+    RunMT(mt_worker);
+  }
+
+  void
+  VerifyScanBackward(  //
+      [[maybe_unused]] const bool expect_success,
+      [[maybe_unused]] const uint32_t expected_val)
+  {
+    if (kDisableScanBackwardTest || HasFailure()) return;
+
+    auto mt_worker = [&](const size_t w_id) -> void {
+      for (auto id : CreateIDs(kExecNum - (kThreadNum + 1))) {
+        if (id % kThreadNum != w_id) continue;
+        const auto end_id = id + kThreadNum;
+        auto &&iter = index_->ScanBackward(id, kClosed, end_id, kOpen);
+        if (expect_success) {
+          if constexpr (!kDisableScanVerifyTest) {
+            iter.PrepareVerifier();
+          }
+          for (; iter; ++iter, ++id) {
+            if (HasFailure()) return;
+            const auto &[key, payload] = *iter;
+            ASSERT_EQ(payload, expected_val) << "[ScanBackward: payload]";
+          }
+          if constexpr (!kDisableScanVerifyTest) {
+            ASSERT_TRUE(iter.VerifySnapshot()) << "[ScanBackward: snapshot read]";
+            ASSERT_TRUE(iter.VerifyNoPhantom()) << "[ScanBackward: phantom avoidance]";
+          }
+          ASSERT_EQ(id, end_id) << "[ScanBackward: # of scanned records]";
+        }
+        ASSERT_FALSE(iter) << "[ScanBackward: iterator reach end]";
+      }
+    };
+
+    std::cout << "  [dbgroup] scan backward...\n";
     RunMT(mt_worker);
   }
 
@@ -343,7 +378,8 @@ class IndexMultiThreadFixture : public testing::Test
     }
 
     VerifyRead(expect_success, expected_val);
-    VerifyScan(expect_success, expected_val);
+    VerifyScanForward(expect_success, expected_val);
+    VerifyScanBackward(expect_success, expected_val);
   }
 
   void
@@ -376,7 +412,8 @@ class IndexMultiThreadFixture : public testing::Test
     }
 
     VerifyRead(expect_success, expected_val);
-    VerifyScan(expect_success, expected_val);
+    VerifyScanForward(expect_success, expected_val);
+    VerifyScanBackward(expect_success, expected_val);
   }
 
   void
@@ -406,7 +443,8 @@ class IndexMultiThreadFixture : public testing::Test
     }
 
     VerifyRead(expect_success, expected_val);
-    VerifyScan(expect_success, expected_val);
+    VerifyScanForward(expect_success, expected_val);
+    VerifyScanBackward(expect_success, expected_val);
   }
 
   void
@@ -439,7 +477,8 @@ class IndexMultiThreadFixture : public testing::Test
     VerifyUpdate(expect_success, expected_val);
 
     VerifyRead(expect_success, expected_val);
-    VerifyScan(expect_success, expected_val);
+    VerifyScanForward(expect_success, expected_val);
+    VerifyScanBackward(expect_success, expected_val);
   }
 
   void
@@ -469,7 +508,8 @@ class IndexMultiThreadFixture : public testing::Test
     VerifyDelete(expected_val);
 
     VerifyRead(kExpectFailed, expected_val);
-    VerifyScan(kExpectFailed, expected_val);
+    VerifyScanForward(kExpectFailed, expected_val);
+    VerifyScanBackward(kExpectFailed, expected_val);
   }
 
   void
@@ -572,7 +612,8 @@ class IndexMultiThreadFixture : public testing::Test
     }
 
     VerifyRead(expect_success, expected_val);
-    VerifyScan(expect_success, expected_val);
+    VerifyScanForward(expect_success, expected_val);
+    VerifyScanBackward(expect_success, expected_val);
   }
 
   /*##########################################################################*

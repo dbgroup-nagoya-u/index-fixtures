@@ -122,6 +122,35 @@ class IndexWrapper
     }
   }
 
+  auto
+  ScanBackward(  //
+      [[maybe_unused]] const std::optional<size_t> &b_id = std::nullopt,
+      [[maybe_unused]] const bool b_closed = true,
+      [[maybe_unused]] const std::optional<size_t> &e_id = std::nullopt,
+      [[maybe_unused]] const bool e_closed = true)
+  {
+    if constexpr (kDisableScanBackwardTest) {
+      return DummyIter<Key, Payload>{};
+    } else {
+      ScanKey b_key{};
+      if (b_id) {
+        const auto &key = keys_.at(*b_id);
+        b_key = std::make_tuple(key, GetLength(key), b_closed);
+      }
+      ScanKey e_key{};
+      if (e_id) {
+        const auto &key = keys_.at(*e_id);
+        e_key = std::make_tuple(key, GetLength(key), e_closed);
+      }
+
+      decltype(index_->ScanBackward()) ret{};
+      EXPECT_NO_THROW({
+        ret = index_->ScanBackward(b_key, e_key);  //
+      }) << "[ScanBackward: runtime error]";
+      return ret;
+    }
+  }
+
   void
   Write(  //
       [[maybe_unused]] const size_t key_id)
