@@ -127,15 +127,15 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
   # use GTest
   FetchContent_Declare(
     googletest
-    GIT_REPOSITORY "https://github.com/google/googletest.git"
-    GIT_TAG "f8d7d77c06936315286eb55f8de22cd23c188571" # v1.14.0
+    GIT_REPOSITORY "https://github.com/google/googletest"
+    GIT_TAG "52eb8108c5bdec04579160ae17225d66034bd723" # v1.17.0
   )
   FetchContent_MakeAvailable(googletest)
 
   # use our utility library
   FetchContent_Declare(
     cpp-utility
-    GIT_REPOSITORY "https://github.com/dbgroup-nagoya-u/cpp-utility.git"
+    GIT_REPOSITORY "https://github.com/dbgroup-nagoya-u/cpp-utility"
     GIT_TAG "db062d55b6ca017eb686952da25ac012b5fdce1f"
   )
   FetchContent_MakeAvailable(cpp-utility)
@@ -147,7 +147,7 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
     FetchContent_Declare(
       mimalloc
       GIT_REPOSITORY "https://github.com/microsoft/mimalloc"
-      GIT_TAG "8c532c32c3c96e5ba1f2283e032f69ead8add00f" # v2.1.7
+      GIT_TAG "30b2d9d89099bee08e9f67a1ffb3e12e7ba45227" # v3.3.2
     )
     FetchContent_MakeAvailable(mimalloc)
   endif()
