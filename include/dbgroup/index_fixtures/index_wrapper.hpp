@@ -62,9 +62,6 @@ class IndexWrapper
       const size_t rec_num)
       : index_{std::make_unique<Index>()}, keys_{PrepareTestData<Key>(rec_num)}
   {
-    if constexpr (!kDisableRecordMerging) {
-      index_->SetRecordMerger(AddMerger);
-    }
   }
 
   ~IndexWrapper()
@@ -158,7 +155,11 @@ class IndexWrapper
     if constexpr (!kDisableWriteTest) {
       EXPECT_NO_THROW({
         const auto &key = keys_.at(key_id);
-        index_->Write(key, 1, GetLength(key));  //
+        if constexpr (kDisableRecordMerging) {
+          index_->Write(key, 1, GetLength(key));
+        } else {
+          index_->Write(key, 1, GetLength(key), AddMerger);
+        }
       }) << "[Write: runtime error]";
     }
   }
@@ -174,7 +175,11 @@ class IndexWrapper
       std::optional<Payload> ret;
       EXPECT_NO_THROW({
         const auto &key = keys_.at(key_id);
-        ret = index_->Upsert(key, 1, GetLength(key));  //
+        if constexpr (kDisableRecordMerging) {
+          ret = index_->Upsert(key, 1, GetLength(key));
+        } else {
+          ret = index_->Upsert(key, 1, GetLength(key), AddMerger);
+        }
       }) << "[Upsert: runtime error]";
       return ret;
     }
@@ -208,7 +213,11 @@ class IndexWrapper
       std::optional<Payload> ret;
       EXPECT_NO_THROW({
         const auto &key = keys_.at(key_id);
-        ret = index_->Update(key, 1, GetLength(key));  //
+        if constexpr (kDisableRecordMerging) {
+          ret = index_->Update(key, 1, GetLength(key));
+        } else {
+          ret = index_->Update(key, 1, GetLength(key), AddMerger, sizeof(Payload));
+        }
       }) << "[Update: runtime error]";
       return ret;
     }
@@ -256,6 +265,7 @@ class IndexWrapper
     }
   }
 
+ private:
   /*##########################################################################*
    * Static assertions
    *##########################################################################*/
