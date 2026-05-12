@@ -18,8 +18,7 @@
 // #include "target_index.hpp"
 
 // external libraries
-#include "dbgroup/index_fixtures/index_fixture_multi_thread.hpp"
-#include "gtest/gtest.h"
+#include <dbgroup/index_fixtures/index_fixture.hpp>
 
 namespace dbgroup::index::test
 {
@@ -40,12 +39,12 @@ using TestTargets = ::testing::Types<  //
     IndexInfo<Index, UInt4, UInt4>,    // small keys/small payloads
     IndexInfo<Index, Var, UInt4>       // varlen keys/small payloads
     >;
-TYPED_TEST_SUITE(IndexMultiThreadFixture, TestTargets);
+TYPED_TEST_SUITE(IndexFixture, TestTargets);
 
 /*############################################################################*
  * Unit test definitions
  *############################################################################*/
 
-#include "dbgroup/index_fixtures/index_fixture_multi_thread_test_definitions.hpp"
+#include "dbgroup/index_fixtures/index_fixture_test_definitions.hpp"
 
 }  // namespace dbgroup::index::test

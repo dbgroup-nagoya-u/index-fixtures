@@ -19,16 +19,16 @@
 
 // C++ standard libraries
 #include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <optional>
 #include <tuple>
-#include <utility>
 #include <vector>
 
 // external libraries
-#include "dbgroup/index/utility.hpp"
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+
+// external C++ libraries
+#include <dbgroup/index/utility.hpp>
 
 // local sources
 #include "common.hpp"
@@ -266,14 +266,6 @@ class IndexWrapper
   }
 
  private:
-  /*##########################################################################*
-   * Static assertions
-   *##########################################################################*/
-
-  static_assert(  //
-      std::is_same_v<Payload, uint32_t> || std::is_same_v<Payload, uint64_t>,
-      "Our tests assume that payloads are unsigned 32/64-bits integers.");
-
   /*##########################################################################*
    * Internal member variables
    *##########################################################################*/

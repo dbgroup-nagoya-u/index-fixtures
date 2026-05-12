@@ -22,14 +22,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <optional>
 #include <random>
-#include <utility>
 #include <vector>
 
 // external libraries
-#include "dbgroup/index/utility.hpp"
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+
+// external C++ libraries
+#include <dbgroup/index/utility.hpp>
 
 // local sources
 #include "common.hpp"

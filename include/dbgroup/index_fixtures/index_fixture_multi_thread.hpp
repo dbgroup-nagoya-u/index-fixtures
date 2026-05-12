@@ -24,16 +24,16 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
-#include <optional>
 #include <random>
 #include <thread>
-#include <tuple>
-#include <utility>
 #include <vector>
 
 // external libraries
-#include "dbgroup/index/utility.hpp"
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+
+// external C++ libraries
+#include <dbgroup/index/utility.hpp>
+#include <dbgroup/thread/id_manager.hpp>
 
 // local sources
 #include "common.hpp"
@@ -70,6 +70,7 @@ class IndexMultiThreadFixture : public testing::Test
   void
   SetUp() override
   {
+    dbgroup::thread::IDManager::SetMaxThreadNum(1024);
     ready_num_ = 0;
     is_ready_ = false;
   }
@@ -159,7 +160,7 @@ class IndexMultiThreadFixture : public testing::Test
 
         if (expect_success) {
           ASSERT_TRUE(ret) << "[Read: RC]";
-          ASSERT_EQ(ret.value(), expected_val) << "[Read: returned value]";
+          ASSERT_EQ(static_cast<uint32_t>(ret.value()), expected_val) << "[Read: returned value]";
         } else {
           ASSERT_FALSE(ret) << "[Read: RC]";
         }
@@ -268,7 +269,7 @@ class IndexMultiThreadFixture : public testing::Test
         if (HasFailure()) return;
 
         if (ret) {
-          ASSERT_LE(ret.value(), expected_val) << "[Upsert: returned value]";
+          ASSERT_LE(static_cast<uint32_t>(ret.value()), expected_val) << "[Upsert: returned value]";
         }
       }
     };
@@ -289,7 +290,7 @@ class IndexMultiThreadFixture : public testing::Test
         if (HasFailure()) return;
 
         if (ret) {
-          ASSERT_EQ(ret.value(), expected_val) << "[Insert: returned value]";
+          ASSERT_EQ(static_cast<uint32_t>(ret.value()), expected_val) << "[Insert: returned value]";
         }
       }
     };
@@ -312,7 +313,8 @@ class IndexMultiThreadFixture : public testing::Test
 
         if (expect_success) {
           ASSERT_TRUE(ret) << "[Update: RC]";
-          ASSERT_LE(ret.value(), max_expected_val) << "[Update: returned value]";
+          ASSERT_LE(static_cast<uint32_t>(ret.value()), max_expected_val)
+              << "[Update: returned value]";
         } else {
           ASSERT_FALSE(ret) << "[Update: RC]";
         }
@@ -335,7 +337,7 @@ class IndexMultiThreadFixture : public testing::Test
         if (HasFailure()) return;
 
         if (ret) {
-          ASSERT_EQ(ret.value(), expected_val) << "[Delete: returned value]";
+          ASSERT_EQ(static_cast<uint32_t>(ret.value()), expected_val) << "[Delete: returned value]";
         }
       }
     };

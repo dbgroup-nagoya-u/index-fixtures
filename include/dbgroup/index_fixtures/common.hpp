@@ -19,19 +19,20 @@
 
 // C++ standard libraries
 #include <bit>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <functional>
 #include <iostream>
-#include <mutex>
-#include <string>
 #include <type_traits>
 #include <vector>
 
 // external libraries
-#include "dbgroup/index/utility.hpp"
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+
+// external C++ libraries
+#include <dbgroup/index/utility.hpp>
 
 namespace dbgroup::index
 {
@@ -109,12 +110,6 @@ constexpr bool kDisableScanBackwardTest = true;
 constexpr bool kDisableScanBackwardTest = false;
 #endif
 
-#ifdef DBGROUP_TEST_DISABLE_SCAN_VERIFIER_TEST
-constexpr bool kDisableScanVerifyTest = true;
-#else
-constexpr bool kDisableScanVerifyTest = false;
-#endif
-
 #ifdef DBGROUP_TEST_DISABLE_WRITE_TEST
 constexpr bool kDisableWriteTest = true;
 #else
@@ -157,67 +152,23 @@ constexpr bool kDisableRecordMerging = true;
 constexpr bool kDisableRecordMerging = false;
 #endif
 
+#ifdef DBGROUP_TEST_DISABLE_SCAN_VERIFIER_TEST
+constexpr bool kDisableScanVerifyTest = true;
+#else
+constexpr bool kDisableScanVerifyTest = false;
+#endif
+
 /*############################################################################*
  * Global utility classes
  *############################################################################*/
 
-template <template <class K, class V, class C> class IndexT, class KeyT, class PayloadT>
+template <template <class K, class V, class C, class... Others> class IndexT,
+          class KeyT,
+          class PayloadT>
 struct IndexInfo {
   using Key = KeyT;
   using Payload = PayloadT;
   using Index = IndexT<typename Key::Data, typename Payload::Data, typename Key::Comp>;
-};
-
-/**
- * @brief An example class to represent CAS-updatable data.
- *
- */
-class MyClass
-{
- public:
-  constexpr MyClass() : data{}, control_bits{0} {}
-
-  constexpr explicit MyClass(  //
-      const uint64_t val) noexcept
-      : data{val}, control_bits{0}
-  {
-  }
-
-  ~MyClass() = default;
-
-  constexpr MyClass(const MyClass &) noexcept = default;
-  constexpr MyClass(MyClass &&) noexcept = default;
-
-  constexpr auto operator=(const MyClass &) noexcept -> MyClass & = default;
-  constexpr auto operator=(MyClass &&) noexcept -> MyClass & = default;
-
-  constexpr auto
-  operator=(                          //
-      const uint64_t value) noexcept  //
-      -> MyClass &
-  {
-    data = value;
-    return *this;
-  }
-
-  constexpr auto
-  operator<(                               //
-      const MyClass &comp) const noexcept  //
-      -> bool
-  {
-    return data < comp.data;
-  }
-
-  constexpr auto
-  operator==(                              //
-      const MyClass &comp) const noexcept  //
-      -> bool
-  {
-    return data == comp.data;
-  }
-
-  uint64_t data : 61;
-  uint64_t control_bits : 3;  // NOLINT
 };
 
 struct VarData {
@@ -270,22 +221,117 @@ struct DummyIter {
 
 struct UInt8 {
   using Data = uint64_t;
-  using Comp = std::less<uint64_t>;
+  using Comp = std::less<Data>;
 };
 
 struct Int8 {
   using Data = int64_t;
-  using Comp = std::less<int64_t>;
+  using Comp = std::less<Data>;
 };
 
 struct UInt4 {
   using Data = uint32_t;
-  using Comp = std::less<uint32_t>;
+  using Comp = std::less<Data>;
 };
 
 struct Int4 {
   using Data = int32_t;
-  using Comp = std::less<int32_t>;
+  using Comp = std::less<Data>;
+};
+
+struct UInt16 {
+  class Data
+  {
+   public:
+    constexpr Data() = default;
+
+    template <std::integral T>
+    constexpr Data(  //
+        const T val) noexcept
+        : prefix{static_cast<uint64_t>(val)}, suffix{static_cast<uint64_t>(val)}
+    {
+    }
+
+    ~Data() = default;
+
+    constexpr Data(const Data &) noexcept = default;
+    constexpr Data(Data &&) noexcept = default;
+
+    constexpr auto operator=(const Data &) noexcept -> Data & = default;
+    constexpr auto operator=(Data &&) noexcept -> Data & = default;
+
+    constexpr auto
+    operator=(                          //
+        const uint64_t value) noexcept  //
+        -> Data &
+    {
+      prefix = value;
+      suffix = value;
+      return *this;
+    }
+
+    constexpr auto
+    operator<(                            //
+        const Data &comp) const noexcept  //
+        -> bool
+    {
+      return prefix < comp.prefix;
+    }
+
+    constexpr auto
+    operator<=(                           //
+        const Data &comp) const noexcept  //
+        -> bool
+    {
+      return prefix <= comp.prefix;
+    }
+
+    constexpr auto
+    operator>(                            //
+        const Data &comp) const noexcept  //
+        -> bool
+    {
+      return prefix > comp.prefix;
+    }
+
+    constexpr auto
+    operator>=(                           //
+        const Data &comp) const noexcept  //
+        -> bool
+    {
+      return prefix >= comp.prefix;
+    }
+
+    constexpr auto
+    operator==(                           //
+        const Data &comp) const noexcept  //
+        -> bool
+    {
+      return prefix == comp.prefix;
+    }
+
+    constexpr auto
+    operator+(                           //
+        const Data &rhs) const noexcept  //
+        -> Data
+    {
+      Data ret{*this};
+      ret.prefix += rhs.prefix;
+      ret.suffix += rhs.suffix;
+      return ret;
+    }
+
+    constexpr explicit
+    operator uint32_t() const noexcept
+    {
+      return static_cast<uint32_t>(prefix);
+    }
+
+    uint64_t prefix{};
+    uint64_t suffix{};
+  };
+
+  using Comp = std::less<Data>;
 };
 
 struct Ptr {
@@ -320,11 +366,6 @@ struct Var {
       return std::strcmp(a, b) < 0;
     }
   };
-};
-
-struct Original {
-  using Data = MyClass;
-  using Comp = std::less<MyClass>;
 };
 
 /*############################################################################*
@@ -425,13 +466,13 @@ AddMerger(  //
 }  // namespace test
 }  // namespace dbgroup::index
 
-auto
+inline auto
 operator<<(  //
     std::ostream &os,
-    const ::dbgroup::index::test::MyClass &obj)  //
+    const ::dbgroup::index::test::UInt16::Data &obj)  //
     -> std::ostream &
 {
-  os << obj.data;
+  os << static_cast<uint32_t>(obj);
   return os;
 }
 

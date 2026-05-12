@@ -13,16 +13,14 @@ function(DBGROUP_ADD_TEST DBGROUP_TEST_TARGET)
     -Wall
     -Wextra
   )
-  target_include_directories(${DBGROUP_TEST_TARGET} PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
-  )
   target_link_libraries(${DBGROUP_TEST_TARGET} PRIVATE
     dbgroup::${PROJECT_NAME}
+    dbgroup::index_fixtures
   )
 
   add_test(NAME ${DBGROUP_TEST_TARGET} COMMAND $<TARGET_FILE:${DBGROUP_TEST_TARGET}>)
 endfunction()
 
 # add unit tests to build targets
-DBGROUP_ADD_TEST("sample_test")
-DBGROUP_ADD_TEST("sample_multi_thread_test")
+DBGROUP_ADD_TEST("single_thread_test")
+DBGROUP_ADD_TEST("multi_thread_test")
