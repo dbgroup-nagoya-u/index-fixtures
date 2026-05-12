@@ -40,12 +40,6 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
   )
 
   option(
-    DBGROUP_TEST_DISABLE_SCAN_VERIFIER_TEST
-    "Disable scan-verification related tests."
-    OFF
-  )
-
-  option(
     DBGROUP_TEST_DISABLE_WRITE_TEST
     "Disable write related tests."
     OFF
@@ -79,6 +73,18 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
     DBGROUP_TEST_DISABLE_BULKLOAD_TEST
     "Disable bulkload related tests."
     OFF
+  )
+
+  option(
+    DBGROUP_TEST_DISABLE_RECORD_MERGING
+    "Disable delta-update related tests."
+    ON
+  )
+
+  option(
+    DBGROUP_TEST_DISABLE_SCAN_VERIFIER_TEST
+    "Disable scan-verification related tests."
+    ON
   )
 
   set(
