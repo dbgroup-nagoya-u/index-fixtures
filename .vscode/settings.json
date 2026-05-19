@@ -90,6 +90,7 @@
     "MIMALLOC",
     "STREQ",
     "STREQUAL",
+    "VARLEN",
     "Wextra"
   ],
   "files.associations": {

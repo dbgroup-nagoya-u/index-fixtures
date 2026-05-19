@@ -53,6 +53,7 @@ class IndexMultiThreadFixture : public testing::Test
    * Type aliases
    *##########################################################################*/
 
+  using Key = typename IndexInfo::Key::Data;
   using Index = IndexWrapper<IndexInfo>;
 
  protected:
@@ -68,10 +69,22 @@ class IndexMultiThreadFixture : public testing::Test
    * Setup/Teardown
    *##########################################################################*/
 
+  static void
+  SetUpTestSuite()
+  {
+    dbgroup::thread::IDManager::SetMaxThreadNum(dbgroup::kMaxThreadCapacity);
+    keys = PrepareTestData<Key>(kExecNum);
+  }
+
+  static void
+  TearDownTestSuite()
+  {
+    ReleaseTestData(keys);
+  }
+
   void
   SetUp() override
   {
-    dbgroup::thread::IDManager::SetMaxThreadNum(dbgroup::kMaxThreadCapacity);
     ready_num_ = 0;
     is_ready_ = false;
   }
@@ -87,10 +100,10 @@ class IndexMultiThreadFixture : public testing::Test
    *##########################################################################*/
 
   void
-  PrepareData(  //
+  Preprocess(  //
       const AccessPattern pattern)
   {
-    index_ = std::make_unique<Index>(kExecNum);
+    index_ = std::make_unique<Index>(keys);
     pattern_ = pattern;
   }
 
@@ -364,7 +377,7 @@ class IndexMultiThreadFixture : public testing::Test
     }
 
     const auto expect_success = !with_delete || write_twice;
-    PrepareData(pattern);
+    Preprocess(pattern);
 
     const auto upd_delta = with_delete ? kInitVal : kUpdDelta;
     uint32_t expected_val = kInitVal;
@@ -398,7 +411,7 @@ class IndexMultiThreadFixture : public testing::Test
     }
 
     const auto expect_success = !with_delete || write_twice;
-    PrepareData(pattern);
+    Preprocess(pattern);
 
     const auto upd_delta = with_delete ? kInitVal : kUpdDelta;
     uint32_t expected_val = kInitVal;
@@ -432,7 +445,7 @@ class IndexMultiThreadFixture : public testing::Test
     }
 
     const auto expect_success = !with_delete || write_twice;
-    PrepareData(pattern);
+    Preprocess(pattern);
 
     uint32_t expected_val = 1;
     VerifyInsert(expected_val);
@@ -464,7 +477,7 @@ class IndexMultiThreadFixture : public testing::Test
     }
 
     const auto expect_success = with_write && !with_delete;
-    PrepareData(pattern);
+    Preprocess(pattern);
 
     uint32_t expected_val = 0;
     if (with_write) {
@@ -496,7 +509,7 @@ class IndexMultiThreadFixture : public testing::Test
       GTEST_SKIP();
     }
 
-    PrepareData(pattern);
+    Preprocess(pattern);
 
     uint32_t expected_val = 0;
     if (with_write) {
@@ -559,7 +572,7 @@ class IndexMultiThreadFixture : public testing::Test
       counter += 1;
     };
 
-    PrepareData(kRandom);
+    Preprocess(kRandom);
     std::cout << "  [dbgroup] initialization...\n";
     for (size_t i = 0; i < kRepeatNum && !HasFailure(); ++i) {
       std::cout << "  [dbgroup] repeat #" << i << "...\n";
@@ -583,7 +596,7 @@ class IndexMultiThreadFixture : public testing::Test
       GTEST_SKIP();
     }
 
-    PrepareData(pattern);
+    Preprocess(pattern);
     auto expect_success = true;
     uint32_t expected_val = 1;
 
@@ -618,6 +631,13 @@ class IndexMultiThreadFixture : public testing::Test
     VerifyScanForward(expect_success, expected_val);
     VerifyScanBackward(expect_success, expected_val);
   }
+
+  /*##########################################################################*
+   * Static member variables
+   *##########################################################################*/
+
+  /// @brief Actual keys.
+  static inline std::vector<Key> keys;
 
   /*##########################################################################*
    * Internal member variables

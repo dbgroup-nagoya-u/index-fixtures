@@ -42,12 +42,13 @@ namespace dbgroup::index::test
  *############################################################################*/
 
 template <class IndexInfo>
-class IndexFixture : public testing::Test
+class IndexFixture : public ::testing::Test
 {
   /*##########################################################################*
    * Type aliases
    *##########################################################################*/
 
+  using Key = typename IndexInfo::Key::Data;
   using Index = IndexWrapper<IndexInfo>;
 
  protected:
@@ -63,6 +64,30 @@ class IndexFixture : public testing::Test
   /*##########################################################################*
    * Setup/Teardown
    *##########################################################################*/
+
+  static void
+  SetUpTestSuite()
+  {
+    keys = PrepareTestData<Key>(kExecNum);
+
+    forward.reserve(kExecNum);
+    for (size_t i = 0; i < kExecNum; ++i) {
+      forward.emplace_back(i);
+    }
+
+    backward = forward;
+    std::reverse(backward.begin(), backward.end());
+
+    random = forward;
+    std::mt19937_64 rand_engine{kRandomSeed};
+    std::shuffle(random.begin(), random.end(), rand_engine);
+  }
+
+  static void
+  TearDownTestSuite()
+  {
+    ReleaseTestData(keys);
+  }
 
   void
   SetUp() override
@@ -80,22 +105,18 @@ class IndexFixture : public testing::Test
    *##########################################################################*/
 
   void
-  PrepareData(  //
+  Preprocess(  //
       const AccessPattern pattern = kSequential,
       const size_t rec_num = kExecNum)
   {
-    index_ = std::make_unique<Index>(kExecNum);
-
-    target_ids_.reserve(rec_num);
-    for (size_t i = 0; i < rec_num; ++i) {
-      target_ids_.emplace_back(i);
-    }
-
-    if (pattern == kReverse) {
-      std::reverse(target_ids_.begin(), target_ids_.end());
-    } else if (pattern == kRandom) {
-      std::mt19937_64 rand_engine{kRandomSeed};
-      std::shuffle(target_ids_.begin(), target_ids_.end(), rand_engine);
+    index_ = std::make_unique<Index>(keys);
+    exec_num_ = rec_num;
+    if (pattern == kSequential) {
+      target_ids_ = &forward;
+    } else if (pattern == kReverse) {
+      target_ids_ = &backward;
+    } else {  // pattern == kRandom
+      target_ids_ = &random;
     }
   }
 
@@ -111,7 +132,8 @@ class IndexFixture : public testing::Test
     if (kDisableReadTest || HasFailure()) return;
 
     std::cout << "  [dbgroup] read...\n";
-    for (const auto &id : target_ids_) {
+    for (size_t i = 0; i < exec_num_; ++i) {
+      const auto id = target_ids_->at(i);
       const auto &ret = index_->Read(id);
       if (HasFailure()) return;
 
@@ -190,7 +212,8 @@ class IndexFixture : public testing::Test
     if (kDisableWriteTest || HasFailure()) return;
 
     std::cout << "  [dbgroup] write...\n";
-    for (const auto &id : target_ids_) {
+    for (size_t i = 0; i < exec_num_; ++i) {
+      const auto id = target_ids_->at(i);
       index_->Write(id);
       if (HasFailure()) return;
     }
@@ -204,7 +227,8 @@ class IndexFixture : public testing::Test
     if (kDisableUpsertTest || HasFailure()) return;
 
     std::cout << "  [dbgroup] upsert...\n";
-    for (const auto &id : target_ids_) {
+    for (size_t i = 0; i < exec_num_; ++i) {
+      const auto id = target_ids_->at(i);
       const auto &ret = index_->Upsert(id);
       if (HasFailure()) return;
 
@@ -225,7 +249,8 @@ class IndexFixture : public testing::Test
     if (kDisableInsertTest || HasFailure()) return;
 
     std::cout << "  [dbgroup] insert...\n";
-    for (const auto &id : target_ids_) {
+    for (size_t i = 0; i < exec_num_; ++i) {
+      const auto id = target_ids_->at(i);
       const auto &ret = index_->Insert(id);
       if (HasFailure()) return;
 
@@ -246,7 +271,8 @@ class IndexFixture : public testing::Test
     if (kDisableUpdateTest || HasFailure()) return;
 
     std::cout << "  [dbgroup] update...\n";
-    for (const auto &id : target_ids_) {
+    for (size_t i = 0; i < exec_num_; ++i) {
+      const auto id = target_ids_->at(i);
       const auto &ret = index_->Update(id);
       if (HasFailure()) return;
 
@@ -267,7 +293,8 @@ class IndexFixture : public testing::Test
     if (kDisableDeleteTest || HasFailure()) return;
 
     std::cout << "  [dbgroup] delete...\n";
-    for (const auto &id : target_ids_) {
+    for (size_t i = 0; i < exec_num_; ++i) {
+      const auto id = target_ids_->at(i);
       const auto &ret = index_->Delete(id);
       if (HasFailure()) return;
 
@@ -287,7 +314,7 @@ class IndexFixture : public testing::Test
   void
   VerifyReadEmptyIndex()
   {
-    PrepareData();
+    Preprocess();
     VerifyRead(kExpectFailed, 0);
   }
 
@@ -302,7 +329,7 @@ class IndexFixture : public testing::Test
     }
 
     const size_t rec_num = kExecNum - (closed ? 0 : 2);
-    PrepareData();
+    Preprocess();
 
     std::cout << "  [dbgroup] initialization...\n";
     for (size_t i = 0; !HasFailure() && i < kExecNum; ++i) {
@@ -339,7 +366,7 @@ class IndexFixture : public testing::Test
     }
 
     const size_t rec_num = kExecNum - (closed ? 0 : 2);
-    PrepareData();
+    Preprocess();
 
     std::cout << "  [dbgroup] initialization...\n";
     for (size_t i = 0; !HasFailure() && i < kExecNum; ++i) {
@@ -379,7 +406,7 @@ class IndexFixture : public testing::Test
     }
 
     const auto expect_success = !with_delete || write_twice;
-    PrepareData(pattern, ops_num);
+    Preprocess(pattern, ops_num);
 
     const auto upd_delta = with_delete ? 1 : kUpdDelta;
     uint32_t expected_val = 1;
@@ -414,7 +441,7 @@ class IndexFixture : public testing::Test
     }
 
     const auto expect_success = !with_delete || write_twice;
-    PrepareData(pattern, ops_num);
+    Preprocess(pattern, ops_num);
 
     const auto upd_delta = with_delete ? 1 : kUpdDelta;
     uint32_t expected_val = 1;
@@ -448,7 +475,7 @@ class IndexFixture : public testing::Test
     }
 
     const auto expect_success = !with_delete || write_twice;
-    PrepareData(pattern);
+    Preprocess(pattern);
 
     uint32_t expected_val = 1;
     VerifyInsert(kExpectSuccess, expected_val);
@@ -480,7 +507,7 @@ class IndexFixture : public testing::Test
     }
 
     const auto expect_success = with_write && !with_delete;
-    PrepareData(pattern);
+    Preprocess(pattern);
 
     uint32_t expected_val = 0;
     if (with_write) {
@@ -515,7 +542,7 @@ class IndexFixture : public testing::Test
     }
 
     const auto expect_success = with_write && !with_delete;
-    PrepareData(pattern);
+    Preprocess(pattern);
 
     uint32_t expected_val = 0;
     if (with_write) {
@@ -549,7 +576,7 @@ class IndexFixture : public testing::Test
       GTEST_SKIP();
     }
 
-    PrepareData(pattern);
+    Preprocess(pattern);
     auto expect_success = true;
     uint32_t expected_val = 1;
 
@@ -594,14 +621,33 @@ class IndexFixture : public testing::Test
       "DBGROUP_TEST_EXEC_NUM >= 30,000.");
 
   /*##########################################################################*
+   * Static member variables
+   *##########################################################################*/
+
+  /// @brief Actual keys.
+  static inline std::vector<Key> keys;
+
+  /// @brief Target IDs for sequential accesses in forward order.
+  static inline std::vector<size_t> forward;
+
+  /// @brief Target IDs for sequential accesses in backward order.
+  static inline std::vector<size_t> backward;
+
+  /// @brief Target IDs for random accesses.
+  static inline std::vector<size_t> random;
+
+  /*##########################################################################*
    * Internal member variables
    *##########################################################################*/
 
   /// @brief An index for testing.
-  std::unique_ptr<Index> index_{};
+  std::unique_ptr<Index> index_;
+
+  /// @brief The number of executions.
+  size_t exec_num_;
 
   /// @brief Record IDs for testing.
-  std::vector<size_t> target_ids_;
+  const std::vector<size_t> *target_ids_;
 };
 
 }  // namespace dbgroup::index::test

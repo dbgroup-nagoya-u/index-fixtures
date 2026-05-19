@@ -59,8 +59,9 @@ class IndexWrapper
   IndexWrapper() = default;
 
   explicit IndexWrapper(  //
-      const size_t rec_num)
-      : index_{std::make_unique<Index>()}, keys_{PrepareTestData<Key>(rec_num)}
+      const std::vector<Key> &keys)
+      : index_{std::make_unique<Index>()}
+      , keys_{keys}
   {
   }
 
@@ -70,10 +71,7 @@ class IndexWrapper
   auto operator=(const IndexWrapper &) -> IndexWrapper & = delete;
   auto operator=(IndexWrapper &&) -> IndexWrapper & = delete;
 
-  ~IndexWrapper()
-  {  //
-    ReleaseTestData(keys_);
-  }
+  ~IndexWrapper() = default;
 
   /*##########################################################################*
    * Wrapper functions
@@ -280,7 +278,7 @@ class IndexWrapper
   std::unique_ptr<Index> index_{};
 
   /// @brief Actual keys.
-  std::vector<Key> keys_{};
+  const std::vector<Key> &keys_{};
 };
 
 }  // namespace dbgroup::index::test

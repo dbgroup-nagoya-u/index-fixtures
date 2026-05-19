@@ -250,7 +250,8 @@ struct UInt16 {
     template <std::integral T>
     constexpr Data(  // NOLINT
         const T val) noexcept
-        : prefix{static_cast<uint64_t>(val)}, suffix{static_cast<uint64_t>(val)}
+        : prefix{static_cast<uint64_t>(val)}
+        , suffix{static_cast<uint64_t>(val)}
     {
     }
 
