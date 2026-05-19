@@ -78,7 +78,9 @@ constexpr size_t kNodeID = (DBGROUP_TEST_DISTRIBUTED_INDEX_NODE_ID);
 
 constexpr size_t kWorkerNum = kThreadNum * kNodeNum;
 
-constexpr size_t kVarDataLength = 18;
+constexpr size_t kVarDataLength = (DBGROUP_TEST_MAX_VARLEN_DATA_SIZE);
+
+constexpr int32_t kPadNum = kVarDataLength / 10;
 
 constexpr bool kExpectSuccess = true;
 
@@ -388,25 +390,31 @@ GetLength(                   //
 inline void
 CreateDummyString(  // NOLINT
     const size_t data_num,
-    const size_t level,
+    const size_t base_level,
     std::vector<char *> &data_vec,
     VarData var_arr[],
     size_t &i,
     VarData &base)
 {
-  if (level + 1 > kVarDataLength) return;
+  if (base_level > kVarDataLength - 2) return;
 
-  for (size_t j = 0; j < 10 && i < data_num; ++j) {  // NOLINT
-    base.data[level] = '0' + j;                      // NOLINT
-    base.data[level + 1] = '\0';
+  constexpr char kPad = '0';
+  constexpr int32_t kDigitsNum = 10;
+  for (int32_t j = 0; j < kDigitsNum && i < data_num; ++j) {
+    auto level = base_level;
+    base.data[level++] = static_cast<char>(kPad + j);
+    base.data[level] = '\0';
 
     auto *data = std::bit_cast<char *>(&(var_arr[i]));
     std::memcpy(data, &base, kVarDataLength);
     data_vec.emplace_back(data);
     if (++i >= data_num) return;
+    if (level > kVarDataLength - kPadNum) continue;
 
-    base.data[level + 1] = '0';
-    CreateDummyString(data_num, level + 2, data_vec, var_arr, i, base);
+    for (int32_t k = 0; k < kPadNum; ++k) {
+      base.data[level++] = kPad;
+    }
+    CreateDummyString(data_num, level, data_vec, var_arr, i, base);
   }
 }
 

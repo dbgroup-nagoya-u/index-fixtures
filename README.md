@@ -10,6 +10,7 @@ This repository is a collection of fixtures for testing index implementations.
 - `DBGROUP_TEST_DISABLE_SCAN_VERIFIER_TEST`: Disable scan verification (avoiding phantom read) tests (default `ON`).
 - `DBGROUP_TEST_THREAD_NUM`: The maximum number of threads to perform unit tests (default `2`).
 - `DBGROUP_TEST_EXEC_NUM`: The number of executions per a thread (default `1E5`).
+- `DBGROUP_TEST_MAX_VARLEN_DATA_SIZE`: The expected maximum size of a variable-length data (default `32`).
 - `DBGROUP_TEST_RANDOM_SEED`: A fixed seed value to reproduce unit tests (default `0`).
 - `DBGROUP_TEST_OVERRIDE_MIMALLOC`: Override entire memory allocation with mimalloc (default `OFF`).
 
