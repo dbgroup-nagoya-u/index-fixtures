@@ -32,6 +32,7 @@
 #include <gtest/gtest.h>
 
 // external C++ libraries
+#include <dbgroup/constants.hpp>
 #include <dbgroup/index/utility.hpp>
 #include <dbgroup/thread/id_manager.hpp>
 
@@ -70,7 +71,7 @@ class IndexMultiThreadFixture : public testing::Test
   void
   SetUp() override
   {
-    dbgroup::thread::IDManager::SetMaxThreadNum(1024);
+    dbgroup::thread::IDManager::SetMaxThreadNum(dbgroup::kMaxThreadCapacity);
     ready_num_ = 0;
     is_ready_ = false;
   }
@@ -626,10 +627,10 @@ class IndexMultiThreadFixture : public testing::Test
   std::unique_ptr<Index> index_{};
 
   /// @brief The number of threads that are ready for testing.
-  std::atomic_size_t ready_num_{};
+  std::atomic_size_t ready_num_;
 
   /// @brief A flag for indicating ready.
-  std::atomic_bool is_ready_{};
+  std::atomic_bool is_ready_;
 
   /// @brief An access pattern for testing.
   AccessPattern pattern_{};

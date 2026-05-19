@@ -58,11 +58,17 @@ class IndexWrapper
 
   IndexWrapper() = default;
 
-  IndexWrapper(  //
+  explicit IndexWrapper(  //
       const size_t rec_num)
       : index_{std::make_unique<Index>()}, keys_{PrepareTestData<Key>(rec_num)}
   {
   }
+
+  IndexWrapper(const IndexWrapper &) = delete;
+  IndexWrapper(IndexWrapper &&) = delete;
+
+  auto operator=(const IndexWrapper &) -> IndexWrapper & = delete;
+  auto operator=(IndexWrapper &&) -> IndexWrapper & = delete;
 
   ~IndexWrapper()
   {  //

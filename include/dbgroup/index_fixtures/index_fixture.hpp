@@ -601,7 +601,7 @@ class IndexFixture : public testing::Test
   std::unique_ptr<Index> index_{};
 
   /// @brief Record IDs for testing.
-  std::vector<size_t> target_ids_{};
+  std::vector<size_t> target_ids_;
 };
 
 }  // namespace dbgroup::index::test
