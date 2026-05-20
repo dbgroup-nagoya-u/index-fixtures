@@ -73,7 +73,20 @@ class IndexMultiThreadFixture : public testing::Test
   SetUpTestSuite()
   {
     dbgroup::thread::IDManager::SetMaxThreadNum(dbgroup::kMaxThreadCapacity);
-    keys = PrepareTestData<Key>(kExecNum);
+
+    keys = PrepareTestData<Key>(kExecNum + 1);
+
+    forward.reserve(kExecNum);
+    for (size_t i = 0; i < kExecNum; ++i) {
+      forward.emplace_back(i);
+    }
+
+    backward = forward;
+    std::reverse(backward.begin(), backward.end());
+
+    random = forward;
+    std::mt19937_64 rand_engine{kRandomSeed};
+    std::shuffle(random.begin(), random.end(), rand_engine);
   }
 
   static void
@@ -107,29 +120,37 @@ class IndexMultiThreadFixture : public testing::Test
     pattern_ = pattern;
   }
 
-  [[nodiscard]] auto
-  CreateIDs(                            //
-      const size_t rec_num = kExecNum)  //
-      -> std::vector<size_t>
+  void
+  PrepareTargetIDs(  //
+      const size_t rec_num = kExecNum)
   {
-    std::vector<size_t> target_ids{};
-    target_ids.reserve(rec_num);
-    for (size_t i = 0; i < rec_num; ++i) {
-      target_ids.emplace_back(i);
+    if (pattern_ == kSequential) {
+      target_ids = &forward;
+      pos = 0;
+    } else if (pattern_ == kReverse) {
+      target_ids = &backward;
+      pos = 0;
+    } else {  // pattern == kRandom
+      target_ids = &random;
+      pos = std::random_device{}() % kExecNum;
     }
-
-    if (pattern_ == kReverse) {
-      std::reverse(target_ids.begin(), target_ids.end());
-    } else if (pattern_ == kRandom) {
-      std::mt19937_64 rand_engine{std::random_device{}()};
-      std::shuffle(target_ids.begin(), target_ids.end(), rand_engine);
-    }
+    exec_num = rec_num;
 
     ++ready_num_;
     while (!is_ready_) {
       std::this_thread::yield();
     }
-    return target_ids;
+  }
+
+  static auto
+  GetID()  //
+      -> size_t
+  {
+    const auto id = target_ids->at(pos);
+    if (++pos >= exec_num) [[unlikely]] {
+      pos = 0;
+    }
+    return id;
   }
 
   void
@@ -168,7 +189,9 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableReadTest || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
-      for (const auto& id : CreateIDs()) {
+      PrepareTargetIDs();
+      for (size_t i = 0; i < kExecNum; ++i) {
+        const auto id = GetID();
         const auto& ret = index_->Read(id);
         if (HasFailure()) return;
 
@@ -193,7 +216,9 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableScanTest || HasFailure()) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
-      for (auto id : CreateIDs(kExecNum - (kThreadNum + 1))) {
+      PrepareTargetIDs();
+      for (size_t i = 0; i < kExecNum; ++i) {
+        auto id = GetID();
         if (id % kThreadNum != w_id) continue;
         const auto end_id = id + kThreadNum;
         auto&& iter = index_->Scan(id, kClosed, end_id, kOpen);
@@ -228,7 +253,9 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableScanBackwardTest || HasFailure()) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
-      for (auto id : CreateIDs(kExecNum - (kThreadNum + 1))) {
+      PrepareTargetIDs();
+      for (size_t i = 0; i < kExecNum; ++i) {
+        auto id = GetID();
         if (id % kThreadNum != w_id) continue;
         const auto end_id = id + kThreadNum;
         auto&& iter = index_->ScanBackward(id, kClosed, end_id, kOpen);
@@ -261,7 +288,9 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableWriteTest || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
-      for (const auto& id : CreateIDs()) {
+      PrepareTargetIDs();
+      for (size_t i = 0; i < kExecNum; ++i) {
+        const auto id = GetID();
         index_->Write(id);
         if (HasFailure()) return;
       }
@@ -278,7 +307,9 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableUpsertTest || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
-      for (const auto& id : CreateIDs()) {
+      PrepareTargetIDs();
+      for (size_t i = 0; i < kExecNum; ++i) {
+        const auto id = GetID();
         const auto& ret = index_->Upsert(id);
         if (HasFailure()) return;
 
@@ -299,7 +330,9 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableInsertTest || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
-      for (const auto& id : CreateIDs()) {
+      PrepareTargetIDs();
+      for (size_t i = 0; i < kExecNum; ++i) {
+        const auto id = GetID();
         const auto& ret = index_->Insert(id);
         if (HasFailure()) return;
 
@@ -321,7 +354,9 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableUpdateTest || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
-      for (const auto& id : CreateIDs()) {
+      PrepareTargetIDs();
+      for (size_t i = 0; i < kExecNum; ++i) {
+        const auto id = GetID();
         const auto& ret = index_->Update(id);
         if (HasFailure()) return;
 
@@ -346,7 +381,9 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableDeleteTest || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
-      for (const auto& id : CreateIDs()) {
+      PrepareTargetIDs();
+      for (size_t i = 0; i < kExecNum; ++i) {
+        const auto id = GetID();
         const auto& ret = index_->Delete(id);
         if (HasFailure()) return;
 
@@ -546,7 +583,9 @@ class IndexMultiThreadFixture : public testing::Test
     }
 
     auto mt_worker = [&](const size_t w_id) -> void {
-      for (const auto& id : CreateIDs()) {
+      PrepareTargetIDs();
+      for (size_t i = 0; i < kExecNum; ++i) {
+        const auto id = GetID();
         if (w_id >= kScanThread) {
           auto&& iter = index_->Scan(id);
           for (size_t i = 0; iter && i < kScanSize; ++iter, ++i) {
@@ -638,6 +677,24 @@ class IndexMultiThreadFixture : public testing::Test
 
   /// @brief Actual keys.
   static inline std::vector<Key> keys;
+
+  /// @brief Target IDs for sequential accesses in forward order.
+  static inline std::vector<size_t> forward;
+
+  /// @brief Target IDs for sequential accesses in backward order.
+  static inline std::vector<size_t> backward;
+
+  /// @brief Target IDs for random accesses.
+  static inline std::vector<size_t> random;
+
+  /// @brief Record IDs for testing.
+  static thread_local inline const std::vector<size_t>* target_ids;
+
+  /// @brief The current position on `target_ids`.
+  static thread_local inline size_t pos;
+
+  /// @brief The number of executions.
+  static thread_local inline size_t exec_num;
 
   /*##########################################################################*
    * Internal member variables
