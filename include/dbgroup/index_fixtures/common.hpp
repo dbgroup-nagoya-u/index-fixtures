@@ -343,8 +343,8 @@ struct Ptr {
   struct Comp {
     constexpr auto
     operator()(  //
-        const uint64_t* a,
-        const uint64_t* b) const noexcept  //
+        const uint64_t* const a,
+        const uint64_t* const b) const noexcept  //
         -> bool
     {
       if (a == nullptr) return false;
@@ -360,8 +360,8 @@ struct Var {
   struct Comp {
     constexpr auto
     operator()(  //
-        const char* a,
-        const char* b) const noexcept  //
+        const char* const a,
+        const char* const b) const noexcept  //
         -> bool
     {
       if (a == nullptr) return false;
@@ -406,7 +406,7 @@ CreateDummyString(  // NOLINT
     base.data[level++] = static_cast<char>(kPad + j);
     base.data[level] = '\0';
 
-    auto* data = std::bit_cast<char*>(var_arr + i);
+    auto* const data = std::bit_cast<char*>(var_arr + i);
     std::memcpy(data, &base, kVarDataLength);
     data_vec.emplace_back(data);
     if (++i >= data_num) return;
@@ -429,14 +429,14 @@ PrepareTestData(            //
   data_vec.reserve(data_num);
 
   if constexpr (std::is_same_v<T, char*>) {
-    auto* var_arr = new VarData[data_num];
+    auto* const var_arr = new VarData[data_num];
     VarData base{};
     std::memset(static_cast<void*>(base.data), 0, kVarDataLength);
 
     size_t count = 0;
     CreateDummyString(data_num, 0, data_vec, var_arr, count, base);
   } else if constexpr (std::is_same_v<T, uint64_t*>) {
-    auto* ptr_arr = new uint64_t[data_num];
+    auto* const ptr_arr = new uint64_t[data_num];
     for (size_t i = 0; i < data_num; ++i) {
       ptr_arr[i] = i;
       data_vec.emplace_back(ptr_arr + i);
