@@ -134,7 +134,7 @@ class IndexFixture : public ::testing::Test
     std::cout << "  [dbgroup] read...\n";
     for (size_t i = 0; i < exec_num_; ++i) {
       const auto id = target_ids_->at(i);
-      const auto &ret = index_->Read(id);
+      const auto& ret = index_->Read(id);
       if (HasFailure()) return;
 
       if (expect_success) {
@@ -155,7 +155,7 @@ class IndexFixture : public ::testing::Test
     if (kDisableScanTest || HasFailure()) return;
 
     std::cout << "  [dbgroup] scan forward...\n";
-    auto &&iter = index_->Scan();
+    auto&& iter = index_->Scan();
     if (expect_success) {
       if constexpr (!kDisableScanVerifyTest) {
         iter.PrepareVerifier();
@@ -163,7 +163,7 @@ class IndexFixture : public ::testing::Test
 
       size_t i = 0;
       for (; !HasFailure() && iter && i < rec_num; ++iter, ++i) {
-        const auto &[_, payload] = *iter;
+        const auto& [_, payload] = *iter;
         ASSERT_EQ(payload, expected_val) << "[Scan: payload]";
       }
       ASSERT_EQ(i, rec_num) << "[Scan: # of records]";
@@ -185,7 +185,7 @@ class IndexFixture : public ::testing::Test
     if (kDisableScanBackwardTest || HasFailure()) return;
 
     std::cout << "  [dbgroup] scan backward...\n";
-    auto &&iter = index_->ScanBackward();
+    auto&& iter = index_->ScanBackward();
     if (expect_success) {
       if constexpr (!kDisableScanVerifyTest) {
         iter.PrepareVerifier();
@@ -193,7 +193,7 @@ class IndexFixture : public ::testing::Test
 
       size_t i = 0;
       for (; !HasFailure() && iter && i < rec_num; ++iter, ++i) {
-        const auto &[_, payload] = *iter;
+        const auto& [_, payload] = *iter;
         ASSERT_EQ(payload, expected_val) << "[ScanBackward: payload]";
       }
       ASSERT_EQ(i, rec_num) << "[ScanBackward: # of records]";
@@ -229,7 +229,7 @@ class IndexFixture : public ::testing::Test
     std::cout << "  [dbgroup] upsert...\n";
     for (size_t i = 0; i < exec_num_; ++i) {
       const auto id = target_ids_->at(i);
-      const auto &ret = index_->Upsert(id);
+      const auto& ret = index_->Upsert(id);
       if (HasFailure()) return;
 
       if (expect_insert) {
@@ -251,7 +251,7 @@ class IndexFixture : public ::testing::Test
     std::cout << "  [dbgroup] insert...\n";
     for (size_t i = 0; i < exec_num_; ++i) {
       const auto id = target_ids_->at(i);
-      const auto &ret = index_->Insert(id);
+      const auto& ret = index_->Insert(id);
       if (HasFailure()) return;
 
       if (expect_success) {
@@ -273,7 +273,7 @@ class IndexFixture : public ::testing::Test
     std::cout << "  [dbgroup] update...\n";
     for (size_t i = 0; i < exec_num_; ++i) {
       const auto id = target_ids_->at(i);
-      const auto &ret = index_->Update(id);
+      const auto& ret = index_->Update(id);
       if (HasFailure()) return;
 
       if (expect_success) {
@@ -295,7 +295,7 @@ class IndexFixture : public ::testing::Test
     std::cout << "  [dbgroup] delete...\n";
     for (size_t i = 0; i < exec_num_; ++i) {
       const auto id = target_ids_->at(i);
-      const auto &ret = index_->Delete(id);
+      const auto& ret = index_->Delete(id);
       if (HasFailure()) return;
 
       if (expect_success) {
@@ -341,10 +341,10 @@ class IndexFixture : public ::testing::Test
     }
 
     std::cout << "  [dbgroup] scan forward...\n";
-    auto &&iter = index_->Scan(0, closed, kExecNum - 1, closed);
+    auto&& iter = index_->Scan(0, closed, kExecNum - 1, closed);
     size_t i = closed ? 0 : 1;
     for (; !HasFailure() && iter && i < rec_num; ++iter, ++i) {
-      const auto &[key, payload] = *iter;
+      const auto& [key, payload] = *iter;
       ASSERT_EQ(payload, 1) << "[Scan: payload]";
     }
     ASSERT_EQ(i, rec_num) << "[Scan: # of records]";
@@ -378,10 +378,10 @@ class IndexFixture : public ::testing::Test
     }
 
     std::cout << "  [dbgroup] scan backward...\n";
-    auto &&iter = index_->ScanBackward(0, closed, kExecNum - 1, closed);
+    auto&& iter = index_->ScanBackward(0, closed, kExecNum - 1, closed);
     size_t i = closed ? 0 : 1;
     for (; !HasFailure() && iter && i < rec_num; ++iter, ++i) {
-      const auto &[key, payload] = *iter;
+      const auto& [key, payload] = *iter;
       ASSERT_EQ(payload, 1) << "[ScanBackward: payload]";
     }
     ASSERT_EQ(i, rec_num) << "[ScanBackward: # of records]";
@@ -641,13 +641,13 @@ class IndexFixture : public ::testing::Test
    *##########################################################################*/
 
   /// @brief An index for testing.
-  std::unique_ptr<Index> index_;
+  std::unique_ptr<Index> index_{};
 
   /// @brief The number of executions.
-  size_t exec_num_;
+  size_t exec_num_{};
 
   /// @brief Record IDs for testing.
-  const std::vector<size_t> *target_ids_;
+  const std::vector<size_t>* target_ids_{};
 };
 
 }  // namespace dbgroup::index::test

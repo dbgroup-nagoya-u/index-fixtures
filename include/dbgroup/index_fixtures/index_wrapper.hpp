@@ -59,17 +59,17 @@ class IndexWrapper
   IndexWrapper() = default;
 
   explicit IndexWrapper(  //
-      const std::vector<Key> &keys)
+      const std::vector<Key>& keys)
       : index_{std::make_unique<Index>()}
       , keys_{keys}
   {
   }
 
-  IndexWrapper(const IndexWrapper &) = delete;
-  IndexWrapper(IndexWrapper &&) = delete;
+  IndexWrapper(const IndexWrapper&) = delete;
+  IndexWrapper(IndexWrapper&&) = delete;
 
-  auto operator=(const IndexWrapper &) -> IndexWrapper & = delete;
-  auto operator=(IndexWrapper &&) -> IndexWrapper & = delete;
+  auto operator=(const IndexWrapper&) -> IndexWrapper& = delete;
+  auto operator=(IndexWrapper&&) -> IndexWrapper& = delete;
 
   ~IndexWrapper() = default;
 
@@ -87,7 +87,7 @@ class IndexWrapper
     } else {
       std::optional<Payload> ret;
       EXPECT_NO_THROW({
-        const auto &key = keys_.at(key_id);
+        const auto& key = keys_.at(key_id);
         ret = index_->Read(key, GetLength(key));
       }) << "[Read: runtime error]";
       return ret;
@@ -96,9 +96,9 @@ class IndexWrapper
 
   auto
   Scan(  //
-      [[maybe_unused]] const std::optional<size_t> &b_id = std::nullopt,
+      [[maybe_unused]] const std::optional<size_t>& b_id = std::nullopt,
       [[maybe_unused]] const bool b_closed = true,
-      [[maybe_unused]] const std::optional<size_t> &e_id = std::nullopt,
+      [[maybe_unused]] const std::optional<size_t>& e_id = std::nullopt,
       [[maybe_unused]] const bool e_closed = true)
   {
     if constexpr (kDisableScanTest) {
@@ -106,12 +106,12 @@ class IndexWrapper
     } else {
       ScanKey b_key{};
       if (b_id) {
-        const auto &key = keys_.at(*b_id);
+        const auto& key = keys_.at(*b_id);
         b_key = std::make_tuple(key, GetLength(key), b_closed);
       }
       ScanKey e_key{};
       if (e_id) {
-        const auto &key = keys_.at(*e_id);
+        const auto& key = keys_.at(*e_id);
         e_key = std::make_tuple(key, GetLength(key), e_closed);
       }
 
@@ -125,9 +125,9 @@ class IndexWrapper
 
   auto
   ScanBackward(  //
-      [[maybe_unused]] const std::optional<size_t> &b_id = std::nullopt,
+      [[maybe_unused]] const std::optional<size_t>& b_id = std::nullopt,
       [[maybe_unused]] const bool b_closed = true,
-      [[maybe_unused]] const std::optional<size_t> &e_id = std::nullopt,
+      [[maybe_unused]] const std::optional<size_t>& e_id = std::nullopt,
       [[maybe_unused]] const bool e_closed = true)
   {
     if constexpr (kDisableScanBackwardTest) {
@@ -135,12 +135,12 @@ class IndexWrapper
     } else {
       ScanKey b_key{};
       if (b_id) {
-        const auto &key = keys_.at(*b_id);
+        const auto& key = keys_.at(*b_id);
         b_key = std::make_tuple(key, GetLength(key), b_closed);
       }
       ScanKey e_key{};
       if (e_id) {
-        const auto &key = keys_.at(*e_id);
+        const auto& key = keys_.at(*e_id);
         e_key = std::make_tuple(key, GetLength(key), e_closed);
       }
 
@@ -158,7 +158,7 @@ class IndexWrapper
   {
     if constexpr (!kDisableWriteTest) {
       EXPECT_NO_THROW({
-        const auto &key = keys_.at(key_id);
+        const auto& key = keys_.at(key_id);
         if constexpr (kDisableRecordMerging) {
           index_->Write(key, 1, GetLength(key));
         } else {
@@ -178,7 +178,7 @@ class IndexWrapper
     } else {
       std::optional<Payload> ret;
       EXPECT_NO_THROW({
-        const auto &key = keys_.at(key_id);
+        const auto& key = keys_.at(key_id);
         if constexpr (kDisableRecordMerging) {
           ret = index_->Upsert(key, 1, GetLength(key));
         } else {
@@ -199,7 +199,7 @@ class IndexWrapper
     } else {
       std::optional<Payload> ret;
       EXPECT_NO_THROW({
-        const auto &key = keys_.at(key_id);
+        const auto& key = keys_.at(key_id);
         ret = index_->Insert(key, 1, GetLength(key));  //
       }) << "[Insert: runtime error]";
       return ret;
@@ -216,7 +216,7 @@ class IndexWrapper
     } else {
       std::optional<Payload> ret;
       EXPECT_NO_THROW({
-        const auto &key = keys_.at(key_id);
+        const auto& key = keys_.at(key_id);
         if constexpr (kDisableRecordMerging) {
           ret = index_->Update(key, 1, GetLength(key));
         } else {
@@ -237,7 +237,7 @@ class IndexWrapper
     } else {
       std::optional<Payload> ret;
       EXPECT_NO_THROW({
-        const auto &key = keys_.at(key_id);
+        const auto& key = keys_.at(key_id);
         ret = index_->Delete(key, GetLength(key));  //
       }) << "[Delete: runtime error]";
       return ret;
@@ -251,7 +251,7 @@ class IndexWrapper
       std::vector<std::tuple<Key, Payload, size_t>> entries{};
       entries.reserve(kExecNum);
       for (size_t i = 0; i < kExecNum; ++i) {
-        const auto &key = keys_.at(i);
+        const auto& key = keys_.at(i);
         entries.emplace_back(key, 1, GetLength(key));
       }
 
@@ -278,7 +278,7 @@ class IndexWrapper
   std::unique_ptr<Index> index_{};
 
   /// @brief Actual keys.
-  const std::vector<Key> &keys_{};
+  const std::vector<Key>& keys_{};
 };
 
 }  // namespace dbgroup::index::test

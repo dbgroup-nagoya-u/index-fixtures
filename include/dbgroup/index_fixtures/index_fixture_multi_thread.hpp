@@ -134,7 +134,7 @@ class IndexMultiThreadFixture : public testing::Test
 
   void
   RunMT(  //
-      const std::function<void(size_t)> &func)
+      const std::function<void(size_t)>& func)
   {
     std::vector<std::thread> threads{};
     threads.reserve(kThreadNum);
@@ -145,7 +145,7 @@ class IndexMultiThreadFixture : public testing::Test
       std::this_thread::yield();
     }
     is_ready_ = true;
-    for (auto &&t : threads) {
+    for (auto&& t : threads) {
       t.join();
     }
 
@@ -168,8 +168,8 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableReadTest || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
-      for (const auto &id : CreateIDs()) {
-        const auto &ret = index_->Read(id);
+      for (const auto& id : CreateIDs()) {
+        const auto& ret = index_->Read(id);
         if (HasFailure()) return;
 
         if (expect_success) {
@@ -196,14 +196,14 @@ class IndexMultiThreadFixture : public testing::Test
       for (auto id : CreateIDs(kExecNum - (kThreadNum + 1))) {
         if (id % kThreadNum != w_id) continue;
         const auto end_id = id + kThreadNum;
-        auto &&iter = index_->Scan(id, kClosed, end_id, kOpen);
+        auto&& iter = index_->Scan(id, kClosed, end_id, kOpen);
         if (expect_success) {
           if constexpr (!kDisableScanVerifyTest) {
             iter.PrepareVerifier();
           }
           for (; iter; ++iter, ++id) {
             if (HasFailure()) return;
-            const auto &[key, payload] = *iter;
+            const auto& [key, payload] = *iter;
             ASSERT_EQ(payload, expected_val) << "[Scan: payload]";
           }
           if constexpr (!kDisableScanVerifyTest) {
@@ -231,14 +231,14 @@ class IndexMultiThreadFixture : public testing::Test
       for (auto id : CreateIDs(kExecNum - (kThreadNum + 1))) {
         if (id % kThreadNum != w_id) continue;
         const auto end_id = id + kThreadNum;
-        auto &&iter = index_->ScanBackward(id, kClosed, end_id, kOpen);
+        auto&& iter = index_->ScanBackward(id, kClosed, end_id, kOpen);
         if (expect_success) {
           if constexpr (!kDisableScanVerifyTest) {
             iter.PrepareVerifier();
           }
           for (; iter; ++iter, ++id) {
             if (HasFailure()) return;
-            const auto &[key, payload] = *iter;
+            const auto& [key, payload] = *iter;
             ASSERT_EQ(payload, expected_val) << "[ScanBackward: payload]";
           }
           if constexpr (!kDisableScanVerifyTest) {
@@ -261,7 +261,7 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableWriteTest || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
-      for (const auto &id : CreateIDs()) {
+      for (const auto& id : CreateIDs()) {
         index_->Write(id);
         if (HasFailure()) return;
       }
@@ -278,8 +278,8 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableUpsertTest || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
-      for (const auto &id : CreateIDs()) {
-        const auto &ret = index_->Upsert(id);
+      for (const auto& id : CreateIDs()) {
+        const auto& ret = index_->Upsert(id);
         if (HasFailure()) return;
 
         if (ret) {
@@ -299,8 +299,8 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableInsertTest || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
-      for (const auto &id : CreateIDs()) {
-        const auto &ret = index_->Insert(id);
+      for (const auto& id : CreateIDs()) {
+        const auto& ret = index_->Insert(id);
         if (HasFailure()) return;
 
         if (ret) {
@@ -321,8 +321,8 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableUpdateTest || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
-      for (const auto &id : CreateIDs()) {
-        const auto &ret = index_->Update(id);
+      for (const auto& id : CreateIDs()) {
+        const auto& ret = index_->Update(id);
         if (HasFailure()) return;
 
         if (expect_success) {
@@ -346,8 +346,8 @@ class IndexMultiThreadFixture : public testing::Test
     if (kDisableDeleteTest || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
-      for (const auto &id : CreateIDs()) {
-        const auto &ret = index_->Delete(id);
+      for (const auto& id : CreateIDs()) {
+        const auto& ret = index_->Delete(id);
         if (HasFailure()) return;
 
         if (ret) {
@@ -546,19 +546,19 @@ class IndexMultiThreadFixture : public testing::Test
     }
 
     auto mt_worker = [&](const size_t w_id) -> void {
-      for (const auto &id : CreateIDs()) {
+      for (const auto& id : CreateIDs()) {
         if (w_id >= kScanThread) {
-          auto &&iter = index_->Scan(id);
+          auto&& iter = index_->Scan(id);
           for (size_t i = 0; iter && i < kScanSize; ++iter, ++i) {
-            const auto &[_, val] = *iter;
+            const auto& [_, val] = *iter;
             ASSERT_GE(val, 0) << "[Scan: read value]";
             ASSERT_LE(val, kMaxVal) << "[Scan: read value]";
             if (HasFailure() || counter >= kScanThread) return;
           }
         } else if (w_id >= kReadThread) {
-          const auto &ret = index_->Read(id);
+          const auto& ret = index_->Read(id);
           if (ret) {
-            const auto &val = *ret;
+            const auto& val = *ret;
             ASSERT_GE(val, 0) << "[Read: read value]";
             ASSERT_LE(val, kMaxVal) << "[Read: read value]";
           }

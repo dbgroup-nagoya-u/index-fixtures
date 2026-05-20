@@ -39,7 +39,7 @@ namespace dbgroup::index
 
 template <>
 constexpr auto
-IsVarLenData<char *>() noexcept  //
+IsVarLenData<char*>() noexcept  //
     -> bool
 {
   return true;
@@ -257,16 +257,16 @@ struct UInt16 {
 
     ~Data() = default;
 
-    constexpr Data(const Data &) noexcept = default;
-    constexpr Data(Data &&) noexcept = default;
+    constexpr Data(const Data&) noexcept = default;
+    constexpr Data(Data&&) noexcept = default;
 
-    constexpr auto operator=(const Data &) noexcept -> Data & = default;
-    constexpr auto operator=(Data &&) noexcept -> Data & = default;
+    constexpr auto operator=(const Data&) noexcept -> Data& = default;
+    constexpr auto operator=(Data&&) noexcept -> Data& = default;
 
     constexpr auto
     operator=(                          //
         const uint64_t value) noexcept  //
-        -> Data &
+        -> Data&
     {
       prefix = value;
       suffix = value;
@@ -275,7 +275,7 @@ struct UInt16 {
 
     constexpr auto
     operator<(                            //
-        const Data &comp) const noexcept  //
+        const Data& comp) const noexcept  //
         -> bool
     {
       return prefix < comp.prefix;
@@ -283,7 +283,7 @@ struct UInt16 {
 
     constexpr auto
     operator<=(                           //
-        const Data &comp) const noexcept  //
+        const Data& comp) const noexcept  //
         -> bool
     {
       return prefix <= comp.prefix;
@@ -291,7 +291,7 @@ struct UInt16 {
 
     constexpr auto
     operator>(                            //
-        const Data &comp) const noexcept  //
+        const Data& comp) const noexcept  //
         -> bool
     {
       return prefix > comp.prefix;
@@ -299,7 +299,7 @@ struct UInt16 {
 
     constexpr auto
     operator>=(                           //
-        const Data &comp) const noexcept  //
+        const Data& comp) const noexcept  //
         -> bool
     {
       return prefix >= comp.prefix;
@@ -307,7 +307,7 @@ struct UInt16 {
 
     constexpr auto
     operator==(                           //
-        const Data &comp) const noexcept  //
+        const Data& comp) const noexcept  //
         -> bool
     {
       return prefix == comp.prefix;
@@ -315,7 +315,7 @@ struct UInt16 {
 
     constexpr auto
     operator+(                           //
-        const Data &rhs) const noexcept  //
+        const Data& rhs) const noexcept  //
         -> Data
     {
       Data ret{*this};
@@ -338,13 +338,13 @@ struct UInt16 {
 };
 
 struct Ptr {
-  using Data = uint64_t *;
+  using Data = uint64_t*;
 
   struct Comp {
     constexpr auto
     operator()(  //
-        const uint64_t *a,
-        const uint64_t *b) const noexcept  //
+        const uint64_t* a,
+        const uint64_t* b) const noexcept  //
         -> bool
     {
       if (a == nullptr) return false;
@@ -355,13 +355,13 @@ struct Ptr {
 };
 
 struct Var {
-  using Data = char *;
+  using Data = char*;
 
   struct Comp {
     constexpr auto
     operator()(  //
-        const char *a,
-        const char *b) const noexcept  //
+        const char* a,
+        const char* b) const noexcept  //
         -> bool
     {
       if (a == nullptr) return false;
@@ -378,10 +378,10 @@ struct Var {
 template <class T>
 auto
 GetLength(                   //
-    const T &data) noexcept  //
+    const T& data) noexcept  //
     -> size_t
 {
-  if constexpr (std::is_same_v<T, char *>) {
+  if constexpr (std::is_same_v<T, char*>) {
     return std::strlen(data) + 1;
   } else {
     return sizeof(T);
@@ -392,10 +392,10 @@ inline void
 CreateDummyString(  // NOLINT
     const size_t data_num,
     const size_t base_level,
-    std::vector<char *> &data_vec,
+    std::vector<char*>& data_vec,
     VarData var_arr[],
-    size_t &i,
-    VarData &base)
+    size_t& i,
+    VarData& base)
 {
   if (base_level > kVarDataLength - 2) return;
 
@@ -406,7 +406,7 @@ CreateDummyString(  // NOLINT
     base.data[level++] = static_cast<char>(kPad + j);
     base.data[level] = '\0';
 
-    auto *data = std::bit_cast<char *>(&(var_arr[i]));
+    auto* data = std::bit_cast<char*>(var_arr + i);
     std::memcpy(data, &base, kVarDataLength);
     data_vec.emplace_back(data);
     if (++i >= data_num) return;
@@ -428,18 +428,18 @@ PrepareTestData(            //
   std::vector<T> data_vec{};
   data_vec.reserve(data_num);
 
-  if constexpr (std::is_same_v<T, char *>) {
-    auto *var_arr = new VarData[data_num];
+  if constexpr (std::is_same_v<T, char*>) {
+    auto* var_arr = new VarData[data_num];
     VarData base{};
-    std::memset(base.data, '0', kVarDataLength);
+    std::memset(static_cast<void*>(base.data), 0, kVarDataLength);
 
     size_t count = 0;
     CreateDummyString(data_num, 0, data_vec, var_arr, count, base);
-  } else if constexpr (std::is_same_v<T, uint64_t *>) {
-    auto *ptr_arr = new uint64_t[data_num];
+  } else if constexpr (std::is_same_v<T, uint64_t*>) {
+    auto* ptr_arr = new uint64_t[data_num];
     for (size_t i = 0; i < data_num; ++i) {
       ptr_arr[i] = i;
-      data_vec.emplace_back(&(ptr_arr[i]));
+      data_vec.emplace_back(ptr_arr + i);
     }
   } else {
     for (size_t i = 0; i < data_num; ++i) {
@@ -453,11 +453,11 @@ PrepareTestData(            //
 template <class T>
 void
 ReleaseTestData(  //
-    [[maybe_unused]] std::vector<T> &data_vec)
+    [[maybe_unused]] std::vector<T>& data_vec)
 {
-  if constexpr (std::is_same_v<T, char *>) {
-    delete[] std::bit_cast<VarData *>(data_vec.front());
-  } else if constexpr (std::is_same_v<T, uint64_t *>) {
+  if constexpr (std::is_same_v<T, char*>) {
+    delete[] std::bit_cast<VarData*>(data_vec.front());
+  } else if constexpr (std::is_same_v<T, uint64_t*>) {
     delete[] data_vec.front();
   }
 }
@@ -465,8 +465,8 @@ ReleaseTestData(  //
 template <class T>
 constexpr auto
 AddMerger(  //
-    const T &lhs,
-    const T &rhs)  //
+    const T& lhs,
+    const T& rhs)  //
     -> T
 {
   return lhs + rhs;
@@ -477,9 +477,9 @@ AddMerger(  //
 
 inline auto
 operator<<(  //
-    std::ostream &os,
-    const ::dbgroup::index::test::UInt16::Data &obj)  //
-    -> std::ostream &
+    std::ostream& os,
+    const ::dbgroup::index::test::UInt16::Data& obj)  //
+    -> std::ostream&
 {
   os << static_cast<uint32_t>(obj);
   return os;
