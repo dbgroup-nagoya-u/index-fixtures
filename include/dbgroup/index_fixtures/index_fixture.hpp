@@ -49,6 +49,7 @@ class IndexFixture : public ::testing::Test
    *##########################################################################*/
 
   using Key = typename IndexInfo::Key::Data;
+  using Comp = typename IndexInfo::Key::Comp;
   using Index = IndexWrapper<IndexInfo>;
 
  protected:
@@ -163,7 +164,8 @@ class IndexFixture : public ::testing::Test
 
       size_t i = 0;
       for (; !HasFailure() && iter && i < rec_num; ++iter, ++i) {
-        const auto& [_, payload] = *iter;
+        const auto& [key, payload] = *iter;
+        ASSERT_TRUE(Equal<Comp>(key, keys[i])) << "[Scan: key]";
         ASSERT_EQ(payload, expected_val) << "[Scan: payload]";
       }
       ASSERT_EQ(i, rec_num) << "[Scan: # of records]";
@@ -191,12 +193,13 @@ class IndexFixture : public ::testing::Test
         iter.PrepareVerifier();
       }
 
-      size_t i = 0;
-      for (; !HasFailure() && iter && i < rec_num; ++iter, ++i) {
-        const auto& [_, payload] = *iter;
+      auto i = static_cast<int32_t>(rec_num - 1);
+      for (; !HasFailure() && iter && i >= 0; ++iter, --i) {
+        const auto& [key, payload] = *iter;
+        ASSERT_TRUE(Equal<Comp>(key, keys[i])) << "[ScanBackward: key]";
         ASSERT_EQ(payload, expected_val) << "[ScanBackward: payload]";
       }
-      ASSERT_EQ(i, rec_num) << "[ScanBackward: # of records]";
+      ASSERT_EQ(i, -1) << "[ScanBackward: # of records]";
 
       if constexpr (!kDisableScanVerifyTest) {
         ASSERT_TRUE(iter.VerifySnapshot()) << "[ScanBackward: snapshot read]";
@@ -328,7 +331,6 @@ class IndexFixture : public ::testing::Test
       GTEST_SKIP();
     }
 
-    const size_t rec_num = kExecNum - (closed ? 0 : 2);
     Preprocess();
 
     std::cout << "  [dbgroup] initialization...\n";
@@ -341,18 +343,16 @@ class IndexFixture : public ::testing::Test
     }
 
     std::cout << "  [dbgroup] scan forward...\n";
+    const size_t rec_num = kExecNum - (closed ? 0 : 1);
     auto&& iter = index_->Scan(0, closed, kExecNum - 1, closed);
     size_t i = closed ? 0 : 1;
     for (; !HasFailure() && iter && i < rec_num; ++iter, ++i) {
       const auto& [key, payload] = *iter;
+      ASSERT_TRUE(Equal<Comp>(key, keys[i])) << "[Scan: key]";
       ASSERT_EQ(payload, 1) << "[Scan: payload]";
     }
     ASSERT_EQ(i, rec_num) << "[Scan: # of records]";
-    if (closed) {
-      ASSERT_FALSE(iter) << "[Scan: iterator]";
-    } else {
-      ASSERT_TRUE(iter) << "[Scan: iterator]";
-    }
+    ASSERT_FALSE(iter) << "[Scan: iterator]";
   }
 
   void
@@ -365,7 +365,6 @@ class IndexFixture : public ::testing::Test
       GTEST_SKIP();
     }
 
-    const size_t rec_num = kExecNum - (closed ? 0 : 2);
     Preprocess();
 
     std::cout << "  [dbgroup] initialization...\n";
@@ -378,18 +377,16 @@ class IndexFixture : public ::testing::Test
     }
 
     std::cout << "  [dbgroup] scan backward...\n";
+    const int32_t end_pos = closed ? -1 : 0;
     auto&& iter = index_->ScanBackward(0, closed, kExecNum - 1, closed);
-    size_t i = closed ? 0 : 1;
-    for (; !HasFailure() && iter && i < rec_num; ++iter, ++i) {
+    auto i = static_cast<int32_t>(kExecNum - (closed ? 1 : 2));
+    for (; !HasFailure() && iter && i > end_pos; ++iter, --i) {
       const auto& [key, payload] = *iter;
+      ASSERT_TRUE(Equal<Comp>(key, keys[i])) << "[ScanBackward: key]";
       ASSERT_EQ(payload, 1) << "[ScanBackward: payload]";
     }
-    ASSERT_EQ(i, rec_num) << "[ScanBackward: # of records]";
-    if (closed) {
-      ASSERT_FALSE(iter) << "[ScanBackward: iterator]";
-    } else {
-      ASSERT_TRUE(iter) << "[ScanBackward: iterator]";
-    }
+    ASSERT_EQ(i, end_pos) << "[ScanBackward: # of records]";
+    ASSERT_FALSE(iter) << "[ScanBackward: iterator]";
   }
 
   void

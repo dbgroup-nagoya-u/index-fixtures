@@ -54,6 +54,7 @@ class IndexMultiThreadFixture : public testing::Test
    *##########################################################################*/
 
   using Key = typename IndexInfo::Key::Data;
+  using Comp = typename IndexInfo::Key::Comp;
   using Index = IndexWrapper<IndexInfo>;
 
  protected:
@@ -219,7 +220,7 @@ class IndexMultiThreadFixture : public testing::Test
       PrepareTargetIDs();
       for (size_t i = 0; i < kExecNum; ++i) {
         auto id = GetID();
-        if (id % kThreadNum != w_id) continue;
+        if (id % kThreadNum != w_id || id > kExecNum - kThreadNum) continue;
         const auto end_id = id + kThreadNum;
         auto&& iter = index_->Scan(id, kClosed, end_id, kOpen);
         if (expect_success) {
@@ -229,6 +230,7 @@ class IndexMultiThreadFixture : public testing::Test
           for (; iter; ++iter, ++id) {
             if (HasFailure()) return;
             const auto& [key, payload] = *iter;
+            ASSERT_TRUE(Equal<Comp>(key, keys[id])) << "[Scan: key]";
             ASSERT_EQ(payload, expected_val) << "[Scan: payload]";
           }
           if constexpr (!kDisableScanVerifyTest) {
@@ -256,23 +258,24 @@ class IndexMultiThreadFixture : public testing::Test
       PrepareTargetIDs();
       for (size_t i = 0; i < kExecNum; ++i) {
         auto id = GetID();
-        if (id % kThreadNum != w_id) continue;
-        const auto end_id = id + kThreadNum;
-        auto&& iter = index_->ScanBackward(id, kClosed, end_id, kOpen);
+        if (id % kThreadNum != w_id || id < kThreadNum) continue;
+        const auto begin_id = id - kThreadNum;
+        auto&& iter = index_->ScanBackward(begin_id, kOpen, id, kClosed);
         if (expect_success) {
           if constexpr (!kDisableScanVerifyTest) {
             iter.PrepareVerifier();
           }
-          for (; iter; ++iter, ++id) {
+          for (; iter; ++iter, --id) {
             if (HasFailure()) return;
             const auto& [key, payload] = *iter;
+            ASSERT_TRUE(Equal<Comp>(key, keys[id])) << "[ScanBackward: key]";
             ASSERT_EQ(payload, expected_val) << "[ScanBackward: payload]";
           }
           if constexpr (!kDisableScanVerifyTest) {
             ASSERT_TRUE(iter.VerifySnapshot()) << "[ScanBackward: snapshot read]";
             ASSERT_TRUE(iter.VerifyNoPhantom()) << "[ScanBackward: phantom avoidance]";
           }
-          ASSERT_EQ(id, end_id) << "[ScanBackward: # of scanned records]";
+          ASSERT_EQ(id, begin_id) << "[ScanBackward: # of scanned records]";
         }
         ASSERT_FALSE(iter) << "[ScanBackward: iterator reach end]";
       }

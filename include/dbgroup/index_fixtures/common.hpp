@@ -485,4 +485,15 @@ operator<<(  //
   return os;
 }
 
+template <class Comp, class T>
+constexpr auto
+Equal(  //
+    const T& lhs,
+    const T& rhs)  //
+    -> bool
+{
+  constexpr Comp kLess{};
+  return !kLess(lhs, rhs) && !kLess(rhs, lhs);
+}
+
 #endif  // DBGROUP_INDEX_FIXTURES_COMMON_HPP
