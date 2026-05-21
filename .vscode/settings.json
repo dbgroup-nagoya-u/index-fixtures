@@ -87,6 +87,7 @@
     "endfunction",
     "googletest",
     "GTEST",
+    "malloc",
     "MIMALLOC",
     "STREQ",
     "STREQUAL",

@@ -153,15 +153,20 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
   FetchContent_MakeAvailable(cpp-utility)
 
   if(${DBGROUP_TEST_OVERRIDE_MIMALLOC})
-    set(MI_BUILD_SHARED OFF CACHE BOOL "Disable mimalloc's unit tests." FORCE)
-    set(MI_BUILD_OBJECT OFF CACHE BOOL "Disable mimalloc's unit tests." FORCE)
-    set(MI_BUILD_TESTS OFF CACHE BOOL "Disable mimalloc's unit tests." FORCE)
-    FetchContent_Declare(
-      mimalloc
-      GIT_REPOSITORY "https://github.com/microsoft/mimalloc"
-      GIT_TAG "30b2d9d89099bee08e9f67a1ffb3e12e7ba45227" # v3.3.2
-    )
-    FetchContent_MakeAvailable(mimalloc)
+    message(STATUS "[index-fixture] override malloc/free using mimalloc.")
+    find_package(mimalloc QUIET)
+    if(NOT mimalloc_FOUND)
+      message(STATUS "[index-fixture] mimalloc not found, so fetching from GitHub.")
+      set(MI_BUILD_SHARED OFF CACHE BOOL "Disable mimalloc's unit tests." FORCE)
+      set(MI_BUILD_OBJECT OFF CACHE BOOL "Disable mimalloc's unit tests." FORCE)
+      set(MI_BUILD_TESTS OFF CACHE BOOL "Disable mimalloc's unit tests." FORCE)
+      FetchContent_Declare(
+        mimalloc
+        GIT_REPOSITORY "https://github.com/microsoft/mimalloc"
+        GIT_TAG "30b2d9d89099bee08e9f67a1ffb3e12e7ba45227" # v3.3.2
+      )
+      FetchContent_MakeAvailable(mimalloc)
+    endif()
   endif()
 
   #----------------------------------------------------------------------------#
