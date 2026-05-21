@@ -93,6 +93,9 @@ class IndexMultiThreadFixture : public testing::Test
   static void
   TearDownTestSuite()
   {
+    forward = {};
+    backward = {};
+    random = {};
     ReleaseTestData(keys);
   }
 
@@ -707,10 +710,10 @@ class IndexMultiThreadFixture : public testing::Test
   std::unique_ptr<Index> index_{};
 
   /// @brief The number of threads that are ready for testing.
-  std::atomic_size_t ready_num_;
+  std::atomic_size_t ready_num_{};
 
   /// @brief A flag for indicating ready.
-  std::atomic_bool is_ready_;
+  std::atomic_bool is_ready_{};
 
   /// @brief An access pattern for testing.
   AccessPattern pattern_{};

@@ -87,6 +87,9 @@ class IndexFixture : public ::testing::Test
   static void
   TearDownTestSuite()
   {
+    forward = {};
+    backward = {};
+    random = {};
     ReleaseTestData(keys);
   }
 
