@@ -94,60 +94,6 @@ constexpr bool kWithWrite = true;
 
 constexpr bool kWithDelete = true;
 
-#ifdef DBGROUP_TEST_DISABLE_READ_TEST
-constexpr bool kDisableReadTest = true;
-#else
-constexpr bool kDisableReadTest = false;
-#endif
-
-#ifdef DBGROUP_TEST_DISABLE_SCAN_TEST
-constexpr bool kDisableScanTest = true;
-#else
-constexpr bool kDisableScanTest = false;
-#endif
-
-#ifdef DBGROUP_TEST_DISABLE_SCAN_BACKWARD_TEST
-constexpr bool kDisableScanBackwardTest = true;
-#else
-constexpr bool kDisableScanBackwardTest = false;
-#endif
-
-#ifdef DBGROUP_TEST_DISABLE_WRITE_TEST
-constexpr bool kDisableWriteTest = true;
-#else
-constexpr bool kDisableWriteTest = false;
-#endif
-
-#ifdef DBGROUP_TEST_DISABLE_UPSERT_TEST
-constexpr bool kDisableUpsertTest = true;
-#else
-constexpr bool kDisableUpsertTest = false;
-#endif
-
-#ifdef DBGROUP_TEST_DISABLE_INSERT_TEST
-constexpr bool kDisableInsertTest = true;
-#else
-constexpr bool kDisableInsertTest = false;
-#endif
-
-#ifdef DBGROUP_TEST_DISABLE_UPDATE_TEST
-constexpr bool kDisableUpdateTest = true;
-#else
-constexpr bool kDisableUpdateTest = false;
-#endif
-
-#ifdef DBGROUP_TEST_DISABLE_DELETE_TEST
-constexpr bool kDisableDeleteTest = true;
-#else
-constexpr bool kDisableDeleteTest = false;
-#endif
-
-#ifdef DBGROUP_TEST_DISABLE_BULKLOAD_TEST
-constexpr bool kDisableBulkloadTest = true;
-#else
-constexpr bool kDisableBulkloadTest = false;
-#endif
-
 #ifdef DBGROUP_TEST_DISABLE_RECORD_MERGING
 constexpr bool kDisableRecordMerging = true;
 #else

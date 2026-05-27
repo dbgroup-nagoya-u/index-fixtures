@@ -4,8 +4,6 @@ This repository is a collection of fixtures for testing index implementations.
 
 ## Build Options
 
-- `DBGROUP_TEST_DISABLE_<OPS>_TEST`: Disable unit tests for a specified operation (default `OFF`).
-    - Target operations are `READ`, `SCAN`, `SCAN_BACKWARD`, `WRITE`, `UPSERT`, `INSERT`, `UPDATE`, `DELETE`, and `BULKLOAD`.
 - `DBGROUP_TEST_DISABLE_RECORD_MERGING`: Make Write/Upsert/Update operations overwrite records (default `ON`).
 - `DBGROUP_TEST_DISABLE_SCAN_VERIFIER_TEST`: Disable scan verification (avoiding phantom read) tests (default `ON`).
 - `DBGROUP_TEST_THREAD_NUM`: The maximum number of threads to perform unit tests (default `2`).

@@ -28,6 +28,7 @@
 #include <gtest/gtest.h>
 
 // external C++ libraries
+#include <dbgroup/index/concepts.hpp>
 #include <dbgroup/index/utility.hpp>
 
 // local sources
@@ -53,7 +54,7 @@ class IndexWrapper
 
  public:
   /*##########################################################################*
-   * Setup/Teardown
+   * Constructors
    *##########################################################################*/
 
   IndexWrapper() = default;
@@ -74,6 +75,34 @@ class IndexWrapper
   ~IndexWrapper() = default;
 
   /*##########################################################################*
+   * Utility APIs
+   *##########################################################################*/
+
+  void
+  SetUp()
+  {
+    if constexpr (HasSetUp<Index>()) {
+      index_->SetUp();
+    }
+  }
+
+  void
+  TearDown()
+  {
+    if constexpr (HasTearDown<Index>()) {
+      index_->TearDown();
+    }
+  }
+
+  void
+  Barrier()
+  {
+    if constexpr (HasBarrier<Index>()) {
+      index_->Barrier();
+    }
+  }
+
+  /*##########################################################################*
    * Wrapper functions
    *##########################################################################*/
 
@@ -82,7 +111,7 @@ class IndexWrapper
       [[maybe_unused]] const size_t key_id)  //
       -> std::optional<Payload>
   {
-    if constexpr (kDisableReadTest) {
+    if constexpr (!HasRead<Index, Key, Payload>()) {
       return std::nullopt;
     } else {
       std::optional<Payload> ret;
@@ -101,7 +130,7 @@ class IndexWrapper
       [[maybe_unused]] const std::optional<size_t>& e_id = std::nullopt,
       [[maybe_unused]] const bool e_closed = true)
   {
-    if constexpr (kDisableScanTest) {
+    if constexpr (!HasScan<Index, Key, Payload>()) {
       return DummyIter<Key, Payload>{};
     } else {
       ScanKey b_key{};
@@ -130,7 +159,7 @@ class IndexWrapper
       [[maybe_unused]] const std::optional<size_t>& e_id = std::nullopt,
       [[maybe_unused]] const bool e_closed = true)
   {
-    if constexpr (kDisableScanBackwardTest) {
+    if constexpr (!HasScanBackward<Index, Key, Payload>()) {
       return DummyIter<Key, Payload>{};
     } else {
       ScanKey b_key{};
@@ -156,7 +185,7 @@ class IndexWrapper
   Write(  //
       [[maybe_unused]] const size_t key_id)
   {
-    if constexpr (!kDisableWriteTest) {
+    if constexpr (HasWrite<Index, Key, Payload>()) {
       EXPECT_NO_THROW({
         const auto& key = keys_.at(key_id);
         if constexpr (kDisableRecordMerging) {
@@ -173,7 +202,7 @@ class IndexWrapper
       [[maybe_unused]] const size_t key_id)  //
       -> std::optional<Payload>
   {
-    if constexpr (kDisableUpsertTest) {
+    if constexpr (!HasUpsert<Index, Key, Payload>()) {
       return std::nullopt;
     } else {
       std::optional<Payload> ret;
@@ -194,7 +223,7 @@ class IndexWrapper
       [[maybe_unused]] const size_t key_id)  //
       -> std::optional<Payload>
   {
-    if constexpr (kDisableInsertTest) {
+    if constexpr (!HasInsert<Index, Key, Payload>()) {
       return std::nullopt;
     } else {
       std::optional<Payload> ret;
@@ -211,7 +240,7 @@ class IndexWrapper
       [[maybe_unused]] const size_t key_id)  //
       -> std::optional<Payload>
   {
-    if constexpr (kDisableUpdateTest) {
+    if constexpr (!HasUpdate<Index, Key, Payload>()) {
       return std::nullopt;
     } else {
       std::optional<Payload> ret;
@@ -232,7 +261,7 @@ class IndexWrapper
       [[maybe_unused]] const size_t key_id)  //
       -> std::optional<Payload>
   {
-    if constexpr (kDisableDeleteTest) {
+    if constexpr (!HasDelete<Index, Key, Payload>()) {
       return std::nullopt;
     } else {
       std::optional<Payload> ret;
@@ -247,7 +276,7 @@ class IndexWrapper
   void
   Bulkload()
   {
-    if constexpr (!kDisableBulkloadTest) {
+    if constexpr (HasBulkload<Index, Key, Payload>()) {
       std::vector<std::tuple<Key, Payload, size_t>> entries{};
       entries.reserve(kExecNum);
       for (size_t i = 0; i < kExecNum; ++i) {
@@ -258,14 +287,6 @@ class IndexWrapper
       EXPECT_NO_THROW({
         index_->Bulkload(entries, kThreadNum);  //
       }) << "[Bulkload: runtime error]";
-    }
-  }
-
-  void
-  Barrier()
-  {
-    if constexpr (kNodeNum > 1) {
-      index_->Barrier();
     }
   }
 

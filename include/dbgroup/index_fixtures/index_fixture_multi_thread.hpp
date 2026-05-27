@@ -33,6 +33,7 @@
 
 // external C++ libraries
 #include <dbgroup/constants.hpp>
+#include <dbgroup/index/concepts.hpp>
 #include <dbgroup/index/utility.hpp>
 #include <dbgroup/thread/id_manager.hpp>
 
@@ -54,8 +55,10 @@ class IndexMultiThreadFixture : public testing::Test
    *##########################################################################*/
 
   using Key = typename IndexInfo::Key::Data;
+  using Payload = typename IndexInfo::Payload::Data;
   using Comp = typename IndexInfo::Key::Comp;
-  using Index = IndexWrapper<IndexInfo>;
+  using Index = typename IndexInfo::Index;
+  using IndexWrapper_t = IndexWrapper<IndexInfo>;
 
  protected:
   /*##########################################################################*
@@ -120,7 +123,7 @@ class IndexMultiThreadFixture : public testing::Test
   Preprocess(  //
       const AccessPattern pattern)
   {
-    index_ = std::make_unique<Index>(keys);
+    index_ = std::make_unique<IndexWrapper_t>(keys);
     pattern_ = pattern;
   }
 
@@ -176,9 +179,7 @@ class IndexMultiThreadFixture : public testing::Test
 
     is_ready_ = false;
     ready_num_ = 0;
-    if constexpr (kNodeNum > 1) {
-      index_->Barrier();
-    }
+    index_->Barrier();
   }
 
   /*##########################################################################*
@@ -190,10 +191,11 @@ class IndexMultiThreadFixture : public testing::Test
       const bool expect_success,
       const uint32_t expected_val)
   {
-    if (kDisableReadTest || HasFailure()) return;
+    if (!HasRead<Index, Key, Payload>() || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
       PrepareTargetIDs();
+      index_->SetUp();
       for (size_t i = 0; i < kExecNum; ++i) {
         const auto id = GetID();
         const auto& ret = index_->Read(id);
@@ -206,6 +208,7 @@ class IndexMultiThreadFixture : public testing::Test
           ASSERT_FALSE(ret) << "[Read: RC]";
         }
       }
+      index_->TearDown();
     };
 
     std::cout << "  [dbgroup] read...\n";
@@ -217,10 +220,11 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const bool expect_success,
       [[maybe_unused]] const uint32_t expected_val)
   {
-    if (kDisableScanTest || HasFailure()) return;
+    if (!HasScan<Index, Key, Payload>() || HasFailure()) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
       PrepareTargetIDs();
+      index_->SetUp();
       for (size_t i = 0; i < kExecNum; ++i) {
         auto id = GetID();
         if (id % kThreadNum != w_id || id > kExecNum - kThreadNum) continue;
@@ -244,6 +248,7 @@ class IndexMultiThreadFixture : public testing::Test
         }
         ASSERT_FALSE(iter) << "[Scan: iterator reach end]";
       }
+      index_->TearDown();
     };
 
     std::cout << "  [dbgroup] scan forward...\n";
@@ -255,10 +260,11 @@ class IndexMultiThreadFixture : public testing::Test
       [[maybe_unused]] const bool expect_success,
       [[maybe_unused]] const uint32_t expected_val)
   {
-    if (kDisableScanBackwardTest || HasFailure()) return;
+    if (!HasScanBackward<Index, Key, Payload>() || HasFailure()) return;
 
     auto mt_worker = [&](const size_t w_id) -> void {
       PrepareTargetIDs();
+      index_->SetUp();
       for (size_t i = 0; i < kExecNum; ++i) {
         auto id = GetID();
         if (id % kThreadNum != w_id || id < kThreadNum) continue;
@@ -282,6 +288,7 @@ class IndexMultiThreadFixture : public testing::Test
         }
         ASSERT_FALSE(iter) << "[ScanBackward: iterator reach end]";
       }
+      index_->TearDown();
     };
 
     std::cout << "  [dbgroup] scan backward...\n";
@@ -291,15 +298,17 @@ class IndexMultiThreadFixture : public testing::Test
   void
   VerifyWrite()
   {
-    if (kDisableWriteTest || HasFailure()) return;
+    if (!HasWrite<Index, Key, Payload>() || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
       PrepareTargetIDs();
+      index_->SetUp();
       for (size_t i = 0; i < kExecNum; ++i) {
         const auto id = GetID();
         index_->Write(id);
         if (HasFailure()) return;
       }
+      index_->TearDown();
     };
 
     std::cout << "  [dbgroup] write...\n";
@@ -310,10 +319,11 @@ class IndexMultiThreadFixture : public testing::Test
   VerifyUpsert(  //
       const uint32_t expected_val)
   {
-    if (kDisableUpsertTest || HasFailure()) return;
+    if (!HasUpsert<Index, Key, Payload>() || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
       PrepareTargetIDs();
+      index_->SetUp();
       for (size_t i = 0; i < kExecNum; ++i) {
         const auto id = GetID();
         const auto& ret = index_->Upsert(id);
@@ -323,6 +333,7 @@ class IndexMultiThreadFixture : public testing::Test
           ASSERT_LE(static_cast<uint32_t>(ret.value()), expected_val) << "[Upsert: returned value]";
         }
       }
+      index_->TearDown();
     };
 
     std::cout << "  [dbgroup] upsert...\n";
@@ -333,10 +344,11 @@ class IndexMultiThreadFixture : public testing::Test
   VerifyInsert(  //
       const uint32_t expected_val)
   {
-    if (kDisableInsertTest || HasFailure()) return;
+    if (!HasInsert<Index, Key, Payload>() || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
       PrepareTargetIDs();
+      index_->SetUp();
       for (size_t i = 0; i < kExecNum; ++i) {
         const auto id = GetID();
         const auto& ret = index_->Insert(id);
@@ -346,6 +358,7 @@ class IndexMultiThreadFixture : public testing::Test
           ASSERT_EQ(static_cast<uint32_t>(ret.value()), expected_val) << "[Insert: returned value]";
         }
       }
+      index_->TearDown();
     };
 
     std::cout << "  [dbgroup] insert...\n";
@@ -357,10 +370,11 @@ class IndexMultiThreadFixture : public testing::Test
       const bool expect_success,
       const uint32_t max_expected_val)
   {
-    if (kDisableUpdateTest || HasFailure()) return;
+    if (!HasUpdate<Index, Key, Payload>() || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
       PrepareTargetIDs();
+      index_->SetUp();
       for (size_t i = 0; i < kExecNum; ++i) {
         const auto id = GetID();
         const auto& ret = index_->Update(id);
@@ -374,6 +388,7 @@ class IndexMultiThreadFixture : public testing::Test
           ASSERT_FALSE(ret) << "[Update: RC]";
         }
       }
+      index_->TearDown();
     };
 
     std::cout << "  [dbgroup] update...\n";
@@ -384,10 +399,11 @@ class IndexMultiThreadFixture : public testing::Test
   VerifyDelete(  //
       const uint32_t expected_val)
   {
-    if (kDisableDeleteTest || HasFailure()) return;
+    if (!HasDelete<Index, Key, Payload>() || HasFailure()) return;
 
     auto mt_worker = [&]([[maybe_unused]] const size_t w_id) -> void {
       PrepareTargetIDs();
+      index_->SetUp();
       for (size_t i = 0; i < kExecNum; ++i) {
         const auto id = GetID();
         const auto& ret = index_->Delete(id);
@@ -397,6 +413,7 @@ class IndexMultiThreadFixture : public testing::Test
           ASSERT_EQ(static_cast<uint32_t>(ret.value()), expected_val) << "[Delete: returned value]";
         }
       }
+      index_->TearDown();
     };
 
     std::cout << "  [dbgroup] delete...\n";
@@ -413,8 +430,8 @@ class IndexMultiThreadFixture : public testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
-    if (kDisableWriteTest                        //
-        || (with_delete && kDisableDeleteTest))  //
+    if (!HasWrite<Index, Key, Payload>()                        //
+        || (with_delete && !HasDelete<Index, Key, Payload>()))  //
     {
       GTEST_SKIP();
     }
@@ -447,8 +464,8 @@ class IndexMultiThreadFixture : public testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
-    if (kDisableUpsertTest                       //
-        || (with_delete && kDisableDeleteTest))  //
+    if (!HasUpsert<Index, Key, Payload>()                       //
+        || (with_delete && !HasDelete<Index, Key, Payload>()))  //
     {
       GTEST_SKIP();
     }
@@ -481,8 +498,8 @@ class IndexMultiThreadFixture : public testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
-    if (kDisableInsertTest                       //
-        || (with_delete && kDisableDeleteTest))  //
+    if (!HasInsert<Index, Key, Payload>()                       //
+        || (with_delete && !HasDelete<Index, Key, Payload>()))  //
     {
       GTEST_SKIP();
     }
@@ -512,9 +529,9 @@ class IndexMultiThreadFixture : public testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
-    if (kDisableUpdateTest                       //
-        || (with_write && kDisableWriteTest)     //
-        || (with_delete && kDisableDeleteTest))  //
+    if (!HasUpdate<Index, Key, Payload>()                       //
+        || (with_write && !HasWrite<Index, Key, Payload>())     //
+        || (with_delete && !HasDelete<Index, Key, Payload>()))  //
     {
       GTEST_SKIP();
     }
@@ -546,8 +563,8 @@ class IndexMultiThreadFixture : public testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
-    if (kDisableDeleteTest                     //
-        || (with_write && kDisableWriteTest))  //
+    if (!HasDelete<Index, Key, Payload>()                     //
+        || (with_write && !HasWrite<Index, Key, Payload>()))  //
     {
       GTEST_SKIP();
     }
@@ -581,15 +598,16 @@ class IndexMultiThreadFixture : public testing::Test
     constexpr size_t kMaxVal = kRepeatNum * kWorkerNum;
     std::atomic_size_t counter{};
 
-    if (kDisableWriteTest      //
-        || kDisableDeleteTest  //
-        || kDisableScanTest)   //
+    if (!HasWrite<Index, Key, Payload>()      //
+        || !HasDelete<Index, Key, Payload>()  //
+        || !HasScan<Index, Key, Payload>())   //
     {
       GTEST_SKIP();
     }
 
     auto mt_worker = [&](const size_t w_id) -> void {
       PrepareTargetIDs();
+      index_->SetUp();
       for (size_t i = 0; i < kExecNum; ++i) {
         const auto id = GetID();
         if (w_id >= kScanThread) {
@@ -615,6 +633,7 @@ class IndexMultiThreadFixture : public testing::Test
         if (HasFailure()) break;
       }
       counter += 1;
+      index_->TearDown();
     };
 
     Preprocess(kRandom);
@@ -631,12 +650,12 @@ class IndexMultiThreadFixture : public testing::Test
       const WriteOperation write_ops,
       const AccessPattern pattern)
   {
-    if (kDisableBulkloadTest                              //
-        || (write_ops == kWrite && kDisableWriteTest)     //
-        || (write_ops == kUpsert && kDisableUpsertTest)   //
-        || (write_ops == kInsert && kDisableInsertTest)   //
-        || (write_ops == kUpdate && kDisableUpdateTest)   //
-        || (write_ops == kDelete && kDisableDeleteTest))  //
+    if (!HasBulkload<Index, Key, Payload>()                              //
+        || (write_ops == kWrite && !HasWrite<Index, Key, Payload>())     //
+        || (write_ops == kUpsert && !HasUpsert<Index, Key, Payload>())   //
+        || (write_ops == kInsert && !HasInsert<Index, Key, Payload>())   //
+        || (write_ops == kUpdate && !HasUpdate<Index, Key, Payload>())   //
+        || (write_ops == kDelete && !HasDelete<Index, Key, Payload>()))  //
     {
       GTEST_SKIP();
     }
@@ -707,7 +726,7 @@ class IndexMultiThreadFixture : public testing::Test
    *##########################################################################*/
 
   /// @brief An index for testing
-  std::unique_ptr<Index> index_{};
+  std::unique_ptr<IndexWrapper_t> index_{};
 
   /// @brief The number of threads that are ready for testing.
   std::atomic_size_t ready_num_{};

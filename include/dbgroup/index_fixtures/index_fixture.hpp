@@ -29,6 +29,7 @@
 #include <gtest/gtest.h>
 
 // external C++ libraries
+#include <dbgroup/index/concepts.hpp>
 #include <dbgroup/index/utility.hpp>
 
 // local sources
@@ -49,8 +50,10 @@ class IndexFixture : public ::testing::Test
    *##########################################################################*/
 
   using Key = typename IndexInfo::Key::Data;
+  using Payload = typename IndexInfo::Payload::Data;
   using Comp = typename IndexInfo::Key::Comp;
-  using Index = IndexWrapper<IndexInfo>;
+  using Index = typename IndexInfo::Index;
+  using IndexWrapper_t = IndexWrapper<IndexInfo>;
 
  protected:
   /*##########################################################################*
@@ -101,7 +104,10 @@ class IndexFixture : public ::testing::Test
   void
   TearDown() override
   {
-    index_ = nullptr;
+    if (index_) {
+      index_->TearDown();
+      index_ = nullptr;
+    }
   }
 
   /*##########################################################################*
@@ -113,7 +119,8 @@ class IndexFixture : public ::testing::Test
       const AccessPattern pattern = kSequential,
       const size_t rec_num = kExecNum)
   {
-    index_ = std::make_unique<Index>(keys);
+    index_ = std::make_unique<IndexWrapper_t>(keys);
+    index_->SetUp();
     exec_num_ = rec_num;
     if (pattern == kSequential) {
       target_ids_ = &forward;
@@ -133,7 +140,7 @@ class IndexFixture : public ::testing::Test
       const bool expect_success,
       const uint32_t expected_val)
   {
-    if (kDisableReadTest || HasFailure()) return;
+    if (!HasRead<Index, Key, Payload>() || HasFailure()) return;
 
     std::cout << "  [dbgroup] read...\n";
     for (size_t i = 0; i < exec_num_; ++i) {
@@ -156,7 +163,7 @@ class IndexFixture : public ::testing::Test
       [[maybe_unused]] const bool expect_success,
       [[maybe_unused]] const uint32_t expected_val)
   {
-    if (kDisableScanTest || HasFailure()) return;
+    if (!HasScan<Index, Key, Payload>() || HasFailure()) return;
 
     std::cout << "  [dbgroup] scan forward...\n";
     auto&& iter = index_->Scan();
@@ -187,7 +194,7 @@ class IndexFixture : public ::testing::Test
       [[maybe_unused]] const bool expect_success,
       [[maybe_unused]] const uint32_t expected_val)
   {
-    if (kDisableScanBackwardTest || HasFailure()) return;
+    if (!HasScanBackward<Index, Key, Payload>() || HasFailure()) return;
 
     std::cout << "  [dbgroup] scan backward...\n";
     auto&& iter = index_->ScanBackward();
@@ -215,7 +222,7 @@ class IndexFixture : public ::testing::Test
   void
   VerifyWrite()
   {
-    if (kDisableWriteTest || HasFailure()) return;
+    if (!HasWrite<Index, Key, Payload>() || HasFailure()) return;
 
     std::cout << "  [dbgroup] write...\n";
     for (size_t i = 0; i < exec_num_; ++i) {
@@ -230,7 +237,7 @@ class IndexFixture : public ::testing::Test
       const bool expect_insert = true,
       const uint32_t expected_val = 0)
   {
-    if (kDisableUpsertTest || HasFailure()) return;
+    if (!HasUpsert<Index, Key, Payload>() || HasFailure()) return;
 
     std::cout << "  [dbgroup] upsert...\n";
     for (size_t i = 0; i < exec_num_; ++i) {
@@ -252,7 +259,7 @@ class IndexFixture : public ::testing::Test
       const bool expect_success,
       const uint32_t expected_val = 0)
   {
-    if (kDisableInsertTest || HasFailure()) return;
+    if (!HasInsert<Index, Key, Payload>() || HasFailure()) return;
 
     std::cout << "  [dbgroup] insert...\n";
     for (size_t i = 0; i < exec_num_; ++i) {
@@ -274,7 +281,7 @@ class IndexFixture : public ::testing::Test
       const bool expect_success,
       const uint32_t expected_val)
   {
-    if (kDisableUpdateTest || HasFailure()) return;
+    if (!HasUpdate<Index, Key, Payload>() || HasFailure()) return;
 
     std::cout << "  [dbgroup] update...\n";
     for (size_t i = 0; i < exec_num_; ++i) {
@@ -296,7 +303,7 @@ class IndexFixture : public ::testing::Test
       const bool expect_success,
       const uint32_t expected_val)
   {
-    if (kDisableDeleteTest || HasFailure()) return;
+    if (!HasDelete<Index, Key, Payload>() || HasFailure()) return;
 
     std::cout << "  [dbgroup] delete...\n";
     for (size_t i = 0; i < exec_num_; ++i) {
@@ -328,8 +335,8 @@ class IndexFixture : public ::testing::Test
   VerifyScanForwardWith(  //
       const bool closed)
   {
-    if (kDisableScanTest                               //
-        || (kDisableWriteTest && kDisableInsertTest))  //
+    if (!HasScan<Index, Key, Payload>()                                              //
+        || (!HasWrite<Index, Key, Payload>() && !HasInsert<Index, Key, Payload>()))  //
     {
       GTEST_SKIP();
     }
@@ -338,7 +345,7 @@ class IndexFixture : public ::testing::Test
 
     std::cout << "  [dbgroup] initialization...\n";
     for (size_t i = 0; !HasFailure() && i < kExecNum; ++i) {
-      if constexpr (kDisableWriteTest) {
+      if constexpr (!HasWrite<Index, Key, Payload>()) {
         index_->Write(i);
       } else {
         index_->Insert(i);
@@ -362,8 +369,8 @@ class IndexFixture : public ::testing::Test
   VerifyScanBackwardWith(  //
       const bool closed)
   {
-    if (kDisableScanBackwardTest                       //
-        || (kDisableWriteTest && kDisableInsertTest))  //
+    if (!HasScanBackward<Index, Key, Payload>()                                      //
+        || (!HasWrite<Index, Key, Payload>() && !HasInsert<Index, Key, Payload>()))  //
     {
       GTEST_SKIP();
     }
@@ -372,7 +379,7 @@ class IndexFixture : public ::testing::Test
 
     std::cout << "  [dbgroup] initialization...\n";
     for (size_t i = 0; !HasFailure() && i < kExecNum; ++i) {
-      if constexpr (kDisableWriteTest) {
+      if constexpr (!HasWrite<Index, Key, Payload>()) {
         index_->Write(i);
       } else {
         index_->Insert(i);
@@ -399,8 +406,8 @@ class IndexFixture : public ::testing::Test
       const AccessPattern pattern,
       const size_t ops_num = kExecNum)
   {
-    if (kDisableWriteTest                        //
-        || (with_delete && kDisableDeleteTest))  //
+    if (!HasWrite<Index, Key, Payload>()                        //
+        || (with_delete && !HasDelete<Index, Key, Payload>()))  //
     {
       GTEST_SKIP();
     }
@@ -434,8 +441,8 @@ class IndexFixture : public ::testing::Test
       const AccessPattern pattern,
       const size_t ops_num = kExecNum)
   {
-    if (kDisableUpsertTest                       //
-        || (with_delete && kDisableDeleteTest))  //
+    if (!HasUpsert<Index, Key, Payload>()                       //
+        || (with_delete && !HasDelete<Index, Key, Payload>()))  //
     {
       GTEST_SKIP();
     }
@@ -468,8 +475,8 @@ class IndexFixture : public ::testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
-    if (kDisableInsertTest                       //
-        || (with_delete && kDisableDeleteTest))  //
+    if (!HasInsert<Index, Key, Payload>()                       //
+        || (with_delete && !HasDelete<Index, Key, Payload>()))  //
     {
       GTEST_SKIP();
     }
@@ -499,9 +506,9 @@ class IndexFixture : public ::testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
-    if (kDisableUpdateTest                       //
-        || (with_write && kDisableWriteTest)     //
-        || (with_delete && kDisableDeleteTest))  //
+    if (!HasUpdate<Index, Key, Payload>()                       //
+        || (with_write && !HasWrite<Index, Key, Payload>())     //
+        || (with_delete && !HasDelete<Index, Key, Payload>()))  //
     {
       GTEST_SKIP();
     }
@@ -535,8 +542,8 @@ class IndexFixture : public ::testing::Test
       const bool with_delete,
       const AccessPattern pattern)
   {
-    if (kDisableDeleteTest                     //
-        || (with_write && kDisableWriteTest))  //
+    if (!HasDelete<Index, Key, Payload>()                     //
+        || (with_write && !HasWrite<Index, Key, Payload>()))  //
     {
       GTEST_SKIP();
     }
@@ -566,12 +573,12 @@ class IndexFixture : public ::testing::Test
       const WriteOperation write_ops,
       const AccessPattern pattern)
   {
-    if (kDisableBulkloadTest                              //
-        || (write_ops == kWrite && kDisableWriteTest)     //
-        || (write_ops == kUpsert && kDisableUpsertTest)   //
-        || (write_ops == kInsert && kDisableInsertTest)   //
-        || (write_ops == kUpdate && kDisableUpdateTest)   //
-        || (write_ops == kDelete && kDisableDeleteTest))  //
+    if (!HasBulkload<Index, Key, Payload>()                              //
+        || (write_ops == kWrite && !HasWrite<Index, Key, Payload>())     //
+        || (write_ops == kUpsert && !HasUpsert<Index, Key, Payload>())   //
+        || (write_ops == kInsert && !HasInsert<Index, Key, Payload>())   //
+        || (write_ops == kUpdate && !HasUpdate<Index, Key, Payload>())   //
+        || (write_ops == kDelete && !HasDelete<Index, Key, Payload>()))  //
     {
       GTEST_SKIP();
     }
@@ -641,7 +648,7 @@ class IndexFixture : public ::testing::Test
    *##########################################################################*/
 
   /// @brief An index for testing.
-  std::unique_ptr<Index> index_{};
+  std::unique_ptr<IndexWrapper_t> index_{};
 
   /// @brief The number of executions.
   size_t exec_num_{};

@@ -8,7 +8,7 @@ endif()
 # project information
 project(
   index_fixtures
-  VERSION "0.2.0"
+  VERSION "0.3.0"
   DESCRIPTION "An open-source index fixture classes."
   LANGUAGES "CXX"
 )
@@ -20,60 +20,6 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
   #----------------------------------------------------------------------------#
   # Build options
   #----------------------------------------------------------------------------#
-
-  option(
-    DBGROUP_TEST_DISABLE_READ_TEST
-    "Disable read related tests."
-    OFF
-  )
-
-  option(
-    DBGROUP_TEST_DISABLE_SCAN_TEST
-    "Disable scan related tests."
-    OFF
-  )
-
-  option(
-    DBGROUP_TEST_DISABLE_SCAN_BACKWARD_TEST
-    "Disable scan backward related tests."
-    OFF
-  )
-
-  option(
-    DBGROUP_TEST_DISABLE_WRITE_TEST
-    "Disable write related tests."
-    OFF
-  )
-
-  option(
-    DBGROUP_TEST_DISABLE_UPSERT_TEST
-    "Disable upsert related tests."
-    OFF
-  )
-
-  option(
-    DBGROUP_TEST_DISABLE_INSERT_TEST
-    "Disable insert related tests."
-    OFF
-  )
-
-  option(
-    DBGROUP_TEST_DISABLE_UPDATE_TEST
-    "Disable update related tests."
-    OFF
-  )
-
-  option(
-    DBGROUP_TEST_DISABLE_DELETE_TEST
-    "Disable delete related tests."
-    OFF
-  )
-
-  option(
-    DBGROUP_TEST_DISABLE_BULKLOAD_TEST
-    "Disable bulkload related tests."
-    OFF
-  )
 
   option(
     DBGROUP_TEST_DISABLE_RECORD_MERGING
@@ -148,7 +94,7 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
   FetchContent_Declare(
     cpp-utility
     GIT_REPOSITORY "https://github.com/dbgroup-nagoya-u/cpp-utility"
-    GIT_TAG "65210c10893227e2276009bcf95161501d4ded11"
+    GIT_TAG "8da07347db75c1498a849a8817534590ceb67738"
   )
   FetchContent_MakeAvailable(cpp-utility)
 
@@ -179,17 +125,8 @@ if(NOT TARGET dbgroup::${PROJECT_NAME})
     "cxx_std_20"
   )
   target_compile_definitions(${PROJECT_NAME} INTERFACE
-    $<$<BOOL:${DBGROUP_TEST_DISABLE_READ_TEST}>:DBGROUP_TEST_DISABLE_READ_TEST>
-    $<$<BOOL:${DBGROUP_TEST_DISABLE_SCAN_TEST}>:DBGROUP_TEST_DISABLE_SCAN_TEST>
-    $<$<BOOL:${DBGROUP_TEST_DISABLE_SCAN_BACKWARD_TEST}>:DBGROUP_TEST_DISABLE_SCAN_BACKWARD_TEST>
-    $<$<BOOL:${DBGROUP_TEST_DISABLE_SCAN_VERIFIER_TEST}>:DBGROUP_TEST_DISABLE_SCAN_VERIFIER_TEST>
-    $<$<BOOL:${DBGROUP_TEST_DISABLE_WRITE_TEST}>:DBGROUP_TEST_DISABLE_WRITE_TEST>
-    $<$<BOOL:${DBGROUP_TEST_DISABLE_UPSERT_TEST}>:DBGROUP_TEST_DISABLE_UPSERT_TEST>
-    $<$<BOOL:${DBGROUP_TEST_DISABLE_INSERT_TEST}>:DBGROUP_TEST_DISABLE_INSERT_TEST>
-    $<$<BOOL:${DBGROUP_TEST_DISABLE_UPDATE_TEST}>:DBGROUP_TEST_DISABLE_UPDATE_TEST>
-    $<$<BOOL:${DBGROUP_TEST_DISABLE_DELETE_TEST}>:DBGROUP_TEST_DISABLE_DELETE_TEST>
-    $<$<BOOL:${DBGROUP_TEST_DISABLE_BULKLOAD_TEST}>:DBGROUP_TEST_DISABLE_BULKLOAD_TEST>
     $<$<BOOL:${DBGROUP_TEST_DISABLE_RECORD_MERGING}>:DBGROUP_TEST_DISABLE_RECORD_MERGING>
+    $<$<BOOL:${DBGROUP_TEST_DISABLE_SCAN_VERIFIER_TEST}>:DBGROUP_TEST_DISABLE_SCAN_VERIFIER_TEST>
     DBGROUP_TEST_THREAD_NUM=${DBGROUP_TEST_THREAD_NUM}
     DBGROUP_TEST_RANDOM_SEED=${DBGROUP_TEST_RANDOM_SEED}
     DBGROUP_TEST_EXEC_NUM=${DBGROUP_TEST_EXEC_NUM}
