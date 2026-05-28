@@ -345,7 +345,7 @@ class IndexFixture : public ::testing::Test
 
     std::cout << "  [dbgroup] initialization...\n";
     for (size_t i = 0; !HasFailure() && i < kExecNum; ++i) {
-      if constexpr (!HasWrite<Index, Key, Payload>()) {
+      if constexpr (HasWrite<Index, Key, Payload>()) {
         index_->Write(i);
       } else {
         index_->Insert(i);
@@ -379,7 +379,7 @@ class IndexFixture : public ::testing::Test
 
     std::cout << "  [dbgroup] initialization...\n";
     for (size_t i = 0; !HasFailure() && i < kExecNum; ++i) {
-      if constexpr (!HasWrite<Index, Key, Payload>()) {
+      if constexpr (HasWrite<Index, Key, Payload>()) {
         index_->Write(i);
       } else {
         index_->Insert(i);
