@@ -21,6 +21,7 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <tuple>
 #include <vector>
 
@@ -111,15 +112,15 @@ class IndexWrapper
       [[maybe_unused]] const size_t key_id)  //
       -> std::optional<Payload>
   {
-    if constexpr (!HasRead<Index, Key, Payload>()) {
-      return std::nullopt;
-    } else {
+    if constexpr (HasRead<Index, Key, Payload>()) {
       std::optional<Payload> ret;
       EXPECT_NO_THROW({
         const auto& key = keys_.at(key_id);
         ret = index_->Read(key, GetLength(key));
       }) << "[Read: runtime error]";
       return ret;
+    } else {
+      throw std::runtime_error{"The read operation it not implemented."};
     }
   }
 
@@ -130,9 +131,7 @@ class IndexWrapper
       [[maybe_unused]] const std::optional<size_t>& e_id = std::nullopt,
       [[maybe_unused]] const bool e_closed = true)
   {
-    if constexpr (!HasScan<Index, Key, Payload>()) {
-      return DummyIter<Key, Payload>{};
-    } else {
+    if constexpr (HasScan<Index, Key, Payload>()) {
       ScanKey b_key{};
       if (b_id) {
         const auto& key = keys_.at(*b_id);
@@ -149,6 +148,9 @@ class IndexWrapper
         ret = index_->Scan(b_key, e_key);  //
       }) << "[Scan: runtime error]";
       return ret;
+    } else {
+      throw std::runtime_error{"The scan (forward) operation it not implemented."};
+      return DummyIter<Key, Payload>{};
     }
   }
 
@@ -159,9 +161,7 @@ class IndexWrapper
       [[maybe_unused]] const std::optional<size_t>& e_id = std::nullopt,
       [[maybe_unused]] const bool e_closed = true)
   {
-    if constexpr (!HasScanBackward<Index, Key, Payload>()) {
-      return DummyIter<Key, Payload>{};
-    } else {
+    if constexpr (HasScanBackward<Index, Key, Payload>()) {
       ScanKey b_key{};
       if (b_id) {
         const auto& key = keys_.at(*b_id);
@@ -178,6 +178,9 @@ class IndexWrapper
         ret = index_->ScanBackward(b_key, e_key);  //
       }) << "[ScanBackward: runtime error]";
       return ret;
+    } else {
+      throw std::runtime_error{"The scan (backward) operation it not implemented."};
+      return DummyIter<Key, Payload>{};
     }
   }
 
@@ -194,6 +197,8 @@ class IndexWrapper
           index_->Write(key, 1, GetLength(key), AddMerger);
         }
       }) << "[Write: runtime error]";
+    } else {
+      throw std::runtime_error{"The write operation it not implemented."};
     }
   }
 
@@ -202,9 +207,7 @@ class IndexWrapper
       [[maybe_unused]] const size_t key_id)  //
       -> std::optional<Payload>
   {
-    if constexpr (!HasUpsert<Index, Key, Payload>()) {
-      return std::nullopt;
-    } else {
+    if constexpr (HasUpsert<Index, Key, Payload>()) {
       std::optional<Payload> ret;
       EXPECT_NO_THROW({
         const auto& key = keys_.at(key_id);
@@ -215,6 +218,8 @@ class IndexWrapper
         }
       }) << "[Upsert: runtime error]";
       return ret;
+    } else {
+      throw std::runtime_error{"The upsert operation it not implemented."};
     }
   }
 
@@ -223,15 +228,15 @@ class IndexWrapper
       [[maybe_unused]] const size_t key_id)  //
       -> std::optional<Payload>
   {
-    if constexpr (!HasInsert<Index, Key, Payload>()) {
-      return std::nullopt;
-    } else {
+    if constexpr (HasInsert<Index, Key, Payload>()) {
       std::optional<Payload> ret;
       EXPECT_NO_THROW({
         const auto& key = keys_.at(key_id);
         ret = index_->Insert(key, 1, GetLength(key));  //
       }) << "[Insert: runtime error]";
       return ret;
+    } else {
+      throw std::runtime_error{"The insert operation it not implemented."};
     }
   }
 
@@ -240,9 +245,7 @@ class IndexWrapper
       [[maybe_unused]] const size_t key_id)  //
       -> std::optional<Payload>
   {
-    if constexpr (!HasUpdate<Index, Key, Payload>()) {
-      return std::nullopt;
-    } else {
+    if constexpr (HasUpdate<Index, Key, Payload>()) {
       std::optional<Payload> ret;
       EXPECT_NO_THROW({
         const auto& key = keys_.at(key_id);
@@ -253,6 +256,8 @@ class IndexWrapper
         }
       }) << "[Update: runtime error]";
       return ret;
+    } else {
+      throw std::runtime_error{"The update operation it not implemented."};
     }
   }
 
@@ -261,15 +266,15 @@ class IndexWrapper
       [[maybe_unused]] const size_t key_id)  //
       -> std::optional<Payload>
   {
-    if constexpr (!HasDelete<Index, Key, Payload>()) {
-      return std::nullopt;
-    } else {
+    if constexpr (HasDelete<Index, Key, Payload>()) {
       std::optional<Payload> ret;
       EXPECT_NO_THROW({
         const auto& key = keys_.at(key_id);
         ret = index_->Delete(key, GetLength(key));  //
       }) << "[Delete: runtime error]";
       return ret;
+    } else {
+      throw std::runtime_error{"The delete operation it not implemented."};
     }
   }
 
@@ -287,6 +292,8 @@ class IndexWrapper
       EXPECT_NO_THROW({
         index_->Bulkload(entries, kThreadNum);  //
       }) << "[Bulkload: runtime error]";
+    } else {
+      throw std::runtime_error{"The bulkload operation it not implemented."};
     }
   }
 
